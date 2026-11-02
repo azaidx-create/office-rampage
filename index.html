@@ -1,12 +1,87 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="theme-color" content="#111a2d"><title>Office Rampage — Floor One</title><style>*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#101729;touch-action:none;font-family:system-ui}canvas{width:100vw;height:100dvh;display:block;image-rendering:pixelated;object-fit:contain;background:#101729}#pad{position:fixed;inset:auto 0 max(10px,env(safe-area-inset-bottom)) 0;display:flex;justify-content:space-between;padding:0 15px;pointer-events:none}#pad>div{display:flex;gap:9px;align-items:end}button{pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;border:2px solid #b4c3d3a0;background:#1c2a44d9;color:white;border-radius:14px;font:bold 20px system-ui;min-width:62px;height:60px;box-shadow:0 4px #0c1325}button:active,.pressed{background:#527b97}button.attack{background:#ba5749d9}button.heavy{background:#8e6ab6d9}#menu{position:fixed;inset:0;display:grid;place-content:center;text-align:center;color:#fff4d6;background:linear-gradient(160deg,#0e182de9,#22243be9);padding:20px}#menu h1{font-size:clamp(30px,6vw,64px);letter-spacing:2px;text-shadow:5px 5px #8d4051;margin:0}#menu p{color:#b8cce1;max-width:490px;line-height:1.5}#start{background:#f2ba65;color:#24233a;width:240px;margin:12px auto;font-size:21px}#hint{position:fixed;top:5px;right:8px;color:#ffffff9c;font:11px system-ui;pointer-events:none}@media(max-width:650px){#pad button{min-width:53px;height:54px;font-size:18px}#pad{padding:0 8px}#pad>div{gap:5px}}@media(orientation:portrait){#menu:after{content:'Landscape mode recommended';font-size:12px;color:#f6c77d}}</style></head><body><canvas id="game"></canvas><div id="hint">FLOOR 01 • THE OPEN PLAN</div><div id="pad"><div><button data-key="left">◀</button><button data-key="right">▶</button><button data-key="up">▲</button><button data-key="down">▼</button></div><div><button class="attack" data-key="attack">HIT</button><button class="heavy" data-key="heavy">KICK</button><button data-key="dodge">DASH</button></div></div><div id="menu"><h1>OFFICE RAMPAGE</h1><p>FLOOR 01 — ANIMATION REBUILD<br>Fight through the office. Smash the monitors. Defeat the floor manager.<br><small>Keyboard: WASD / arrows, J punch, K kick, L dash</small></p><button id="start">START FLOOR 01</button></div><script>(()=>{'use strict';const c=document.querySelector('#game'),g=c.getContext('2d'),menu=document.querySelector('#menu'),start=document.querySelector('#start');const W=480,H=270,GROUND=212,LEVEL=1480;let state='menu',cam=0,t=0,last=0,shake=0,freeze=0,score=0,combo=0,comboT=0,stage=0,objects=[],enemies=[],particles=[],player,keys={},pressed={},message='',messageT=0;function R(x,y,w,h,color){g.fillStyle=color;g.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h))}function line(x,y,w,h,color){R(x,y,w,h,color)}function rnd(a,b){return a+Math.random()*(b-a)}function particle(x,y,color,n=8,power=90){for(let i=0;i<n;i++)particles.push({x,y,vx:rnd(-power,power),vy:rnd(-power,power),life:rnd(.18,.48),max:.48,color,size:rnd(1,4)})}function entity(x,y,type='guard'){return{x,y,z:0,vx:0,vz:0,hp:type==='boss'?240:type==='guard'?70:50,max:type==='boss'?240:type==='guard'?70:50,face:-1,type,hit:0,attack:0,attackTime:0,cd:0,stun:0,down:0,dead:false,anim:rnd(0,5),inv:0,combo:0}}function setup(){player=entity(65,205,'hero');player.hp=160;player.max=160;player.face=1;enemies=[entity(460,203,'guard'),entity(590,226,'intern'),entity(820,197,'guard'),entity(1030,220,'intern'),entity(1230,205,'boss')];objects=[{x:220,y:196,type:'monitor',hp:35},{x:375,y:190,type:'plant',hp:25},{x:710,y:213,type:'monitor',hp:35},{x:940,y:190,type:'plant',hp:25},{x:1115,y:212,type:'monitor',hp:35}];particles=[];cam=0;t=0;shake=0;freeze=0;score=0;combo=0;comboT=0;stage=0;message='CLEAR THE FLOOR';messageT=2.5;state='play';menu.style.display='none';last=performance.now();requestAnimationFrame(loop)}function end(win){state=win?'win':'lose';menu.style.display='grid';menu.querySelector('h1').textContent=win?'FLOOR CLEARED!':'YOU WERE FIRED';menu.querySelector('p').innerHTML='SCORE '+score+'<br>Enemies defeated: '+enemies.filter(e=>e.dead).length+' / '+enemies.length;start.textContent='PLAY AGAIN'}start.onclick=setup;const keyMap={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',KeyJ:'attack',Space:'attack',KeyK:'heavy',KeyL:'dodge'};onkeydown=e=>{const k=keyMap[e.code];if(k){e.preventDefault();if(!keys[k])pressed[k]=true;keys[k]=true}};onkeyup=e=>{const k=keyMap[e.code];if(k){keys[k]=false;e.preventDefault()}};document.querySelectorAll('[data-key]').forEach(b=>{let k=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);if(!keys[k])pressed[k]=true;keys[k]=true;b.classList.add('pressed')});for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,()=>{keys[k]=false;b.classList.remove('pressed')})});function attack(a,heavy=false){if(a.cd>0||a.stun>0||a.down>0)return;a.attack=heavy?2:1;a.attackTime=heavy?.31:.19;a.cd=heavy?.65:.26;a.combo=heavy?0:(a.combo+1)%3;const reach=heavy?57:39,damage=heavy?36: a.combo===0?27:19;let hit=false;const targets=a===player?enemies:[player];for(const e of targets){if(e.dead||e.inv>0)continue;const dx=e.x-a.x;if(dx*a.face>-8&&dx*a.face<reach&&Math.abs(e.y-a.y)<26){hurt(e,damage,a.face,heavy);hit=true}}if(a===player){for(const o of objects){if(o.hp>0&&Math.abs(o.y-a.y)<36&&(o.x-a.x)*a.face>-12&&(o.x-a.x)*a.face<reach+15){o.hp-=damage;hit=true;particle(o.x,o.y-20,o.type==='monitor'?'#9ce9ff':'#8ed69c',12);if(o.hp<=0){score+=50;message='PROPERTY DAMAGE +50';messageT=.9}}}}if(hit){shake=heavy?7:4;freeze=heavy?.085:.045;if(a===player){combo++;comboT=2.2;score+=10*combo}}}function hurt(e,dmg,dir,heavy){if(e.inv>0||e.dead)return;e.hp-=dmg;e.hit=.22;e.stun=heavy?.43:.22;e.vx=dir*(heavy?160:85);e.inv=.12;particle(e.x+12,e.y-28,heavy?'#ffdf82':'#f4c5a0',heavy?16:9);if(e.hp<=0){e.dead=true;e.down=.65;particle(e.x,e.y-20,'#e8b17b',20);if(e===player){end(false)}else{score+=e.type==='boss'?1000:150;message=e.type==='boss'?'BOSS DEFEATED!':'ENEMY DOWN +150';messageT=1.2}}}function update(dt){t+=dt;shake=Math.max(0,shake-25*dt);messageT=Math.max(0,messageT-dt);comboT-=dt;if(comboT<=0)combo=0;const p=player;p.cd=Math.max(0,p.cd-dt);p.inv=Math.max(0,p.inv-dt);p.hit=Math.max(0,p.hit-dt);p.stun=Math.max(0,p.stun-dt);p.attackTime=Math.max(0,p.attackTime-dt);if(p.stun<=0){let mx=(keys.right?1:0)-(keys.left?1:0),my=(keys.down?1:0)-(keys.up?1:0);if(mx)p.face=Math.sign(mx);let speed=keys.dodge?240:130;let mag=Math.hypot(mx,my)||1;p.x=Math.max(18,Math.min(LEVEL-25,p.x+mx/mag*speed*dt));p.y=Math.max(174,Math.min(237,p.y+my/mag*speed*.55*dt));if(pressed.attack)attack(p);else if(pressed.heavy)attack(p,true);if(pressed.dodge){p.inv=.24;particle(p.x,p.y-5,'#b7e5f5',8)}}for(const k in pressed)delete pressed[k];for(const e of enemies){if(e.dead)continue;e.cd=Math.max(0,e.cd-dt);e.inv=Math.max(0,e.inv-dt);e.hit=Math.max(0,e.hit-dt);e.stun=Math.max(0,e.stun-dt);e.attackTime=Math.max(0,e.attackTime-dt);if(e.stun>0){e.x+=e.vx*dt;e.vx*=.85;continue}let dx=p.x-e.x,dy=p.y-e.y;e.face=dx>0?1:-1;if(Math.abs(dx)<240&&Math.abs(dx)>30){e.x+=Math.sign(dx)*(e.type==='boss'?50:67)*dt}if(Math.abs(dx)<180&&Math.abs(dy)>7)e.y+=Math.sign(dy)*30*dt;if(Math.abs(dx)<38&&Math.abs(dy)<24&&e.cd<=0){attack(e,e.type==='boss'&&Math.random()>.45)}}if(enemies.every(e=>e.dead)&&p.x>LEVEL-180){end(true)}else if(enemies.every(e=>e.dead)){message='REACH THE ELEVATOR →';messageT=.15}cam=Math.max(0,Math.min(LEVEL-W,p.x-W*.35));for(const q of particles){q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=280*dt;q.life-=dt}particles=particles.filter(q=>q.life>0)}function actor(a){let x=Math.round(a.x),y=Math.round(a.y),hero=a.type==='hero',boss=a.type==='boss';if(a.dead){R(x-17,y-8,36,7,'#253149');R(x-11,y-13,26,8,boss?'#774458':'#53617b');return}const walking=hero?((keys.left||keys.right||keys.up||keys.down)&&a.stun<=0):Math.abs(a.vx)>2||Math.abs(player.x-a.x)>35;const phase=t*(hero?13:9)+a.anim;const stride=walking?Math.sin(phase):0;const bob=walking?Math.abs(Math.sin(phase))*2:Math.sin(t*2+a.anim)*.6;const attack=a.attackTime>0;const punch=attack&&a.attack===1,kick=attack&&a.attack===2;const coat=hero?'#dce6e5':boss?'#67445e':a.type==='intern'?'#7693a6':'#3d526e',shadow=hero?'#7894a4':boss?'#392f4a':'#26374f',pants=hero?'#25374f':'#252b43',skin=hero?'#eab58c':boss?'#d4a07e':'#c18e75';g.save();g.translate(x,y-bob);if(a.face<0)g.scale(-1,1);if(a.hit>0)g.globalAlpha=.65+Math.sin(t*55)*.35;
-R(-14,-2,30,3,'#18243788');
-function limb(px,py,ang,parts){g.save();g.translate(px,py);g.rotate(ang);for(let p of parts)R(...p);g.restore()}
-const legA=stride*.28,legB=-stride*.28;
-limb(-5,-16,legA,[[ -4,0,9,16,pants],[-5,13,11,4,'#131e30'],[-3,2,2,10,'#62728b']]);
-limb(8,-16,legB+(kick?-.95:0),[[-4,0,9,16,pants],[-4,13,12,4,'#131e30'],[[-3,2,2,10,'#62728b'][0],2,2,10,'#62728b']]);
-R(-11,-39,26,25,shadow);R(-9,-39,23,24,coat);R(-3,-39,8,20,hero?'#f8eee1':'#aab3be');R(0,-36,3,16,hero?'#c54e60':'#9a4d61');R(-10,-17,25,4,pants);
-limb(-9,-35,-stride*.2,[[ -5,0,8,17,coat],[-5,13,8,7,skin],[-6,18,9,5,'#ad785e']]);
-limb(12,-35,punch?-.95:kick?-.2:stride*.2,[[-3,0,9,17,coat],[-3,13,9,7,skin],[-4,18,10,6,'#ae795f']]);
-R(-11,-59,25,21,'#8c5c4d');R(-10,-57,23,19,skin);R(-12,-60,27,8,hero?'#46312d':boss?'#4e424a':'#282e3b');R(-8,-63,21,5,hero?'#46312d':boss?'#4e424a':'#282e3b');R(9,-49,4,3,'#1c2636');R(13,-44,3,4,skin);R(-6,-42,11,3,'#bf856c');R(-9,-30,3,9,shadow);R(10,-30,3,9,shadow);
-if(attack){R(19,-40,punch?19:11,5,skin);R(punch?37:28,-42,8,9,'#f2c093');R(24,-45,2,3,'#f8d67b')}
-g.restore();if(a!==player){R(x-17,y-69,35,4,'#291d33');R(x-17,y-69,35*Math.max(0,a.hp/a.max),4,boss?'#f0ae60':'#de6c7c')}}function background(){R(0,0,W,H,'#26354d');R(0,0,W,102,'#3a4b69');for(let i=0;i<12;i++){let x=i*72-(cam*.16%72);R(x,26,48,76,'#263d5c');R(x+7,14,19,88,'#425b7c');R(x+30,35,9,67,'#587390')}R(0,0,W,22,'#151f35');for(let i=0;i<8;i++){let x=i*86-(cam*.35%86);R(x,27,68,104,'#182d43');R(x+4,31,60,94,'#719ab1');R(x+8,58,16,65,'#4d7893');R(x+29,46,11,77,'#547c9a');R(x+44,69,15,54,'#405e80');R(x+32,31,3,94,'#c5c4b8')}R(0,132,W,62,'#4d6072');R(0,193,W,77,'#4c5264');R(0,193,W,5,'#acb1a9');for(let i=0;i<35;i++){let x=i*48-(cam%48);R(x,199,1,70,'#626a78');R(x,235,48,1,'#626a78')}for(let i=0;i<16;i++){let x=i*100-(cam%100);R(x+9,143,78,6,'#946b58');R(x+15,149,5,42,'#554350');R(x+77,149,5,42,'#554350');R(x+27,116,45,27,'#2a394d');R(x+31,120,37,19,'#85bdc4');R(x+44,143,10,5,'#b7c7bf');R(x+4,158,19,33,'#6d5360');R(x+6,160,15,3,'#a37b74')}R(0,254,W,16,'#303748')}function foreground(){for(let i=0;i<8;i++){let x=i*205+110-cam;if(x<-80||x>W+80)continue;R(x,170,9,45,'#343c51');R(x-15,166,39,7,'#b98c68');R(x-8,151,26,16,'#b7c3b6');R(x-4,154,18,11,'#59798d')}for(let o of objects){let x=o.x-cam;if(x<-60||x>W+60)continue;if(o.hp<=0){R(x-15,o.y-4,36,5,'#334054');R(x+7,o.y-9,8,6,'#75b8bf');continue}if(o.type==='monitor'){R(x-16,o.y-29,32,25,'#1c2b40');R(x-12,o.y-25,24,17,'#83c4c9');R(x-3,o.y-4,6,7,'#9a9eab');R(x-12,o.y+3,24,3,'#343b4b')}else{R(x-8,o.y-12,16,17,'#a9765d');R(x-5,o.y-34,10,22,'#47785c');R(x-19,o.y-33,14,8,'#559267');R(x+5,o.y-41,14,12,'#609e75');R(x-9,o.y-46,12,17,'#5f9b69')}}}function hud(){R(8,7,144,34,'#162337e6');R(13,12,25,24,'#a97c67');R(15,11,22,7,'#47382e');R(43,13,102,12,'#542e45');R(43,13,102*Math.max(0,player.hp/player.max),12,'#78dba5');R(43,28,102,4,'#d1b078');g.fillStyle='#fff2d4';g.font='bold 9px monospace';g.fillText('HP '+Math.ceil(player.hp)+' / '+player.max,45,23);R(W-127,7,120,26,'#162337e6');g.fillText('SCORE '+String(score).padStart(6,'0'),W-120,23);if(combo>1){g.font='bold 17px monospace';g.fillStyle='#f6c66e';g.fillText(combo+' HIT COMBO',W-155,53)}if(messageT>0){g.textAlign='center';g.font='bold 13px monospace';g.fillStyle='#ffe0a0';g.fillText(message,W/2,73);g.textAlign='left'}let boss=enemies.find(e=>e.type==='boss');if(boss&&!boss.dead&&Math.abs(boss.x-player.x)<290){R(145,246,190,11,'#29283b');R(147,248,186*boss.hp/boss.max,7,'#d36b77');g.font='bold 8px monospace';g.fillStyle='#fff';g.fillText('THE FLOOR MANAGER',184,243)}}function render(){const scale=Math.min(c.width/W,c.height/H),ox=(c.width-W*scale)/2,oy=(c.height-H*scale)/2;g.setTransform(1,0,0,1,0,0);g.fillStyle='#101729';g.fillRect(0,0,c.width,c.height);g.setTransform(scale,0,0,scale,ox,oy);g.imageSmoothingEnabled=false;g.save();g.translate(Math.round(rnd(-shake,shake)),Math.round(rnd(-shake/2,shake/2)));background();g.save();g.translate(-Math.round(cam),0);const all=[...enemies.filter(e=>!e.dead),player].sort((a,b)=>a.y-b.y);for(const a of all)actor(a);for(const a of enemies.filter(e=>e.dead))actor(a);g.restore();foreground();for(const q of particles)R(q.x-cam,q.y,q.size,q.size,q.color);if(enemies.every(e=>e.dead)){R(LEVEL-80-cam,125,54,72,'#253b4e');R(LEVEL-76-cam,129,46,64,'#b1a5a0');R(LEVEL-55-cam,131,2,60,'#586b7a');R(LEVEL-72-cam,115,36,10,'#4fbc9b')}g.restore();hud()}function loop(now){if(state!=='play')return;let dt=Math.min(.033,(now-last)/1000);last=now;if(freeze>0){freeze-=dt;render();requestAnimationFrame(loop);return}update(dt);render();if(state==='play')requestAnimationFrame(loop)}function resize(){c.width=Math.round(innerWidth*devicePixelRatio);c.height=Math.round(innerHeight*devicePixelRatio);if(state!=='play'){g.setTransform(c.width/W,0,0,c.height/H,0,0);background()}}onresize=resize;resize()})();</script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#101d2b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta
+      name="description"
+      content="Clock out the hard way. A pixel-art office beat-'em-up built for touch."
+    />
+    <title>Office Rampage · Overtime</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main id="app">
+      <header>
+        <a class="brand" href="./">OR<span>OFFICE RAMPAGE</span></a>
+        <div class="edition">OVERTIME EDITION <b>01</b></div>
+        <button id="sound" aria-label="Enable sound">SOUND OFF</button
+        ><button id="pause" aria-label="Pause game">Ⅱ</button>
+      </header>
+      <section id="stage" aria-label="Office Rampage game">
+        <canvas
+          id="game"
+          width="640"
+          height="360"
+          aria-label="Office beat-em-up. Use WASD to move, J punch, K kick, L dodge."
+          tabindex="0"
+        ></canvas>
+        <div id="overlay">
+          <div class="intro">
+            <div class="eyebrow">MONDAY, 18:47 · FLOOR 01</div>
+            <h1>OFFICE<br /><span>RAMPAGE</span></h1>
+            <p id="description">
+              Your shift is over.<br />Management has other plans.
+            </p>
+            <button id="start">CLOCK OUT <span>→</span></button>
+            <p class="small">3 encounters. One elevator. Zero overtime.</p>
+          </div>
+          <div class="stamp">
+            EMPLOYEE<br /><strong>OF THE<br />MONTH</strong
+            ><span>STATUS: REVOKED</span>
+          </div>
+        </div>
+        <div id="pausePanel" hidden>
+          <div>
+            <span class="eyebrow">TAKE A BREATHER</span>
+            <h2>ON A BREAK</h2>
+            <button id="resume">BACK TO WORK →</button>
+          </div>
+        </div>
+      </section>
+      <section id="controls" aria-label="Touch controls">
+        <div id="stick" role="group" aria-label="Movement joystick">
+          <div class="cross"></div>
+          <div id="knob"></div>
+          <span>MOVE</span>
+        </div>
+        <div class="control-note">
+          <b>MAKE AN EXIT.</b><span>WASD move · J punch · K kick · L dodge</span
+          ><span>Chain 3 punches for a finisher.</span>
+        </div>
+        <div id="actions">
+          <button data-action="dodge" class="dodge" aria-label="Dodge">
+            <b>↝</b><span>DODGE</span></button
+          ><button data-action="kick" class="kick" aria-label="Kick">
+            <b>K</b><span>KICK</span></button
+          ><button data-action="punch" class="punch" aria-label="Punch">
+            <b>J</b><span>PUNCH</span>
+          </button>
+        </div>
+      </section>
+      <footer>
+        <span>FLOOR 01 / THE OPEN PLAN</span><span>MOVE · BREAK · ESCAPE</span>
+      </footer>
+    </main>
+    <script type="module" src="src/game.js"></script>
+  </body>
+</html>

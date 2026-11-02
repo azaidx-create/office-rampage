@@ -1,0 +1,496 @@
+:root {
+  color-scheme: dark;
+  --ink: #101d2b;
+  --cream: #f4dfb4;
+  --mint: #85dbca;
+  --orange: #f4ac68;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0b1520;
+  color: var(--cream);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+body {
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+  touch-action: none;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--mint);
+  outline-offset: 4px;
+}
+[hidden] {
+  display: none !important;
+}
+#app {
+  height: 100dvh;
+  max-width: 1280px;
+  margin: auto;
+  padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right))
+    env(safe-area-inset-bottom) max(16px, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+}
+header {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  min-height: 58px;
+  flex-shrink: 0;
+}
+.brand {
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--orange);
+  font-size: 24px;
+  font-weight: 900;
+  padding: 4px 7px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.brand span {
+  font-size: 10px;
+  letter-spacing: 2px;
+  background: #0b1520;
+  color: var(--cream);
+  padding: 9px 12px;
+  margin: -4px -7px -4px 0;
+}
+.edition {
+  font-size: 9px;
+  letter-spacing: 1.4px;
+  color: #91a6ac;
+  flex: 1;
+}
+.edition b {
+  color: var(--orange);
+  margin-left: 6px;
+}
+header button {
+  font-size: 9px;
+  background: none;
+  border: 1px solid #3a4c59;
+  height: 28px;
+  padding: 0 10px;
+}
+#pause {
+  font-size: 16px;
+}
+#stage {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #101d2b;
+  border: 1px solid #344650;
+  box-shadow: 0 10px 50px #0004;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  touch-action: none;
+}
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 4% 7%;
+  background: linear-gradient(
+    90deg,
+    #101d2bef 0%,
+    #101d2bc4 35%,
+    #101d2b18 100%
+  );
+}
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--mint);
+}
+h1 {
+  font-size: clamp(30px, 6.2vw, 78px);
+  line-height: 0.91;
+  letter-spacing: -3px;
+  margin: 22px 0;
+  color: #f6e9cc;
+  text-shadow: 3px 3px #111b25;
+  font-weight: 1000;
+}
+h1 span {
+  color: var(--orange);
+}
+#description {
+  font-size: clamp(11px, 1.4vw, 15px);
+  line-height: 1.6;
+  color: #ccd0bf;
+  margin: 20px 0;
+}
+#start,
+#resume {
+  border: 0;
+  border-bottom: 4px solid #a6683d;
+  background: var(--orange);
+  color: #152433;
+  padding: 15px 23px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  min-width: 220px;
+  text-align: left;
+}
+#start span {
+  float: right;
+}
+.small {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: #a4b4b3;
+}
+.stamp {
+  margin-left: auto;
+  border: 3px double #e2bd7899;
+  padding: 13px 20px;
+  text-align: center;
+  transform: rotate(9deg);
+  color: #f3d195;
+  font-size: 10px;
+  line-height: 1.7;
+  letter-spacing: 2px;
+  background: #263b4266;
+}
+.stamp strong {
+  display: block;
+  font-size: 20px;
+  line-height: 1.1;
+  margin: 5px;
+}
+.stamp span {
+  font-size: 7px;
+}
+#pausePanel {
+  position: absolute;
+  inset: 0;
+  background: #0b172be8;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+h2 {
+  font-size: 32px;
+}
+#controls {
+  height: 116px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 20px;
+  flex-shrink: 0;
+  touch-action: none;
+}
+#stick {
+  height: 92px;
+  width: 92px;
+  border-radius: 50%;
+  border: 1px solid #52666a;
+  background: radial-gradient(
+    circle,
+    #253c48 0 34%,
+    #162631 35% 65%,
+    #263c45 66% 67%,
+    #111f2b 68%
+  );
+  position: relative;
+  touch-action: none;
+}
+#stick:before,
+#stick:after {
+  content: "";
+  position: absolute;
+  background: #82979040;
+  left: 45px;
+  top: 8px;
+  width: 1px;
+  height: 76px;
+}
+#stick:after {
+  transform: rotate(90deg);
+}
+#knob {
+  position: absolute;
+  left: 28px;
+  top: 28px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #708d90;
+  border: 5px solid #354e59;
+  box-shadow: 0 3px 0 #0a1923;
+  z-index: 1;
+  pointer-events: none;
+}
+#stick > span {
+  position: absolute;
+  bottom: -13px;
+  left: 31px;
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #849d9e;
+}
+.control-note {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 9px;
+  color: #708b92;
+}
+.control-note b {
+  letter-spacing: 3px;
+  color: #a5bcb7;
+  font-size: 10px;
+}
+#actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+#actions button {
+  border-radius: 50%;
+  width: 70px;
+  height: 70px;
+  border: 1px solid #799892;
+  box-shadow:
+    0 4px 0 #060f18,
+    inset 0 0 0 5px #142631;
+  background: #203944;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+#actions b {
+  font-size: 23px;
+}
+#actions span {
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+#actions .punch {
+  width: 82px;
+  height: 82px;
+  background: var(--orange);
+  color: #162531;
+  border-color: #fbd9a5;
+  box-shadow:
+    0 4px 0 #925f3f,
+    inset 0 0 0 5px #d38c51;
+}
+#actions .kick {
+  background: #86baad;
+  color: #142d38;
+  box-shadow:
+    0 4px 0 #426d68,
+    inset 0 0 0 5px #689d93;
+}
+#actions .dodge {
+  width: 58px;
+  height: 58px;
+  color: #b8d3ce;
+}
+#actions button.pressed {
+  transform: translateY(3px);
+  filter: brightness(1.25);
+}
+footer {
+  height: 25px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  letter-spacing: 1.4px;
+  color: #68818a;
+  flex-shrink: 0;
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  #app {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  header {
+    min-height: 32px;
+  }
+  .brand {
+    font-size: 17px;
+  }
+  .brand span {
+    font-size: 8px;
+    padding: 5px 10px;
+  }
+  .edition {
+    font-size: 8px;
+  }
+  footer {
+    display: none;
+  }
+  #controls {
+    position: absolute;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: max(18px, env(safe-area-inset-left));
+    right: max(18px, env(safe-area-inset-right));
+    padding: 0;
+    height: 90px;
+    pointer-events: none;
+  }
+  #stick,
+  #actions {
+    pointer-events: auto;
+  }
+  .control-note {
+    display: none;
+  }
+  #stick {
+    opacity: 0.72;
+  }
+  #actions {
+    opacity: 0.84;
+    gap: 10px;
+  }
+  #actions button {
+    width: 58px;
+    height: 58px;
+  }
+  #actions .punch {
+    width: 66px;
+    height: 66px;
+  }
+  #actions .dodge {
+    width: 48px;
+    height: 48px;
+  }
+  #stage {
+    border: 0;
+  }
+  h1 {
+    font-size: 46px;
+    margin: 12px 0;
+  }
+  #description {
+    margin: 10px 0;
+  }
+  #start {
+    padding: 10px 20px;
+  }
+  .small {
+    margin: 7px 0;
+  }
+  .stamp {
+    margin-right: 10%;
+  }
+  #overlay {
+    z-index: 3;
+    padding: 2% 8%;
+  }
+}
+@media (orientation: portrait) {
+  header {
+    gap: 8px;
+  }
+  .edition {
+    display: none;
+  }
+  .brand {
+    margin-right: auto;
+  }
+  .brand span {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+  #app {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  #stage {
+    flex: initial;
+    height: 56vw;
+    margin-top: auto;
+    margin-bottom: auto;
+    min-height: 225px;
+  }
+  #controls {
+    height: 150px;
+    padding: 15px 8px;
+  }
+  .control-note {
+    display: none;
+  }
+  #actions {
+    gap: 8px;
+  }
+  #actions button {
+    width: 56px;
+    height: 56px;
+  }
+  #actions .punch {
+    width: 66px;
+    height: 66px;
+  }
+  #actions .dodge {
+    width: 48px;
+    height: 48px;
+  }
+  #stick {
+    width: 88px;
+    height: 88px;
+  }
+  .stamp {
+    display: none;
+  }
+  h1 {
+    font-size: 34px;
+    margin: 10px 0;
+    letter-spacing: -1px;
+  }
+  #description {
+    font-size: 11px;
+    margin: 8px 0;
+  }
+  .eyebrow {
+    font-size: 7px;
+  }
+  #start {
+    min-width: 180px;
+    padding: 9px 16px;
+    font-size: 11px;
+  }
+  .small {
+    font-size: 7px;
+  }
+  footer {
+    font-size: 6px;
+  }
+}

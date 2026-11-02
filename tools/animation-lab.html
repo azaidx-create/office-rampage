@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>Office Rampage · Animation Lab</title
+  ><style>
+    body {
+      background: #152633;
+      color: #e8d1a4;
+      font: 14px monospace;
+      margin: 24px;
+    }
+    a {
+      color: #95d6bd;
+    }
+    h1 {
+      font-size: 24px;
+    }
+    main {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: #263e49;
+      padding: 16px;
+      border: 1px solid #48616a;
+    }
+    canvas {
+      image-rendering: pixelated;
+      width: 100%;
+      display: block;
+    }
+    small {
+      color: #94b1af;
+    }
+    button,
+    select {
+      font: inherit;
+      padding: 8px;
+      background: #41616a;
+      color: #fff;
+      border: 1px solid #91b4ac;
+      margin-right: 10px;
+    }
+  </style>
+  <h1>ANIMATION LAB</h1>
+  <p>
+    Discrete raster frames. No runtime limb rotation, static character cutouts,
+    or skeletal tweening.
+  </p>
+  <p><a href="../">← Play Office Rampage</a></p>
+  <select id="type">
+    <option>hero</option>
+    <option>guard</option>
+    <option>intern</option>
+    <option>boss</option></select
+  ><button id="pause">Pause</button
+  ><button id="next">Next frame</button>
+  <main></main>
+  <script type="module">
+    import { createAtlases, POSES } from "../src/art.js";
+    const atlases = createAtlases();
+    let frozen = false,
+      step = 0;
+    const cards = Object.entries(POSES).map(([name, frames]) => {
+      let el = document.createElement("section");
+      el.className = "card";
+      el.innerHTML = `<b>${name.toUpperCase()}</b> <small>${frames.length} authored frames</small><canvas width="288" height="112"></canvas>`;
+      document.querySelector("main").append(el);
+      return { name, canvas: el.querySelector("canvas") };
+    });
+    document.querySelector("#pause").onclick = () => (frozen = !frozen);
+    document.querySelector("#next").onclick = () => {
+      frozen = true;
+      step++;
+    };
+    let last = 0;
+    function draw(now) {
+      if (!frozen && now - last > 110) {
+        step++;
+        last = now;
+      }
+      for (const { name, canvas } of cards) {
+        const c = canvas.getContext("2d"),
+          frames = atlases[document.querySelector("#type").value][name],
+          index = step % frames.length;
+        c.clearRect(0, 0, 288, 112);
+        c.fillStyle = "#95b1a4";
+        c.fillRect(0, 93, 288, 1);
+        for (let i = -1; i < 2; i++) {
+          c.globalAlpha = i === 0 ? 1 : 0.25;
+          c.drawImage(
+            frames[(index + i + frames.length) % frames.length],
+            96 + i * 90,
+            4,
+          );
+        }
+        c.globalAlpha = 1;
+        c.fillStyle = "#e9d4ab";
+        c.fillText(`${index + 1} / ${frames.length}`, 130, 108);
+      }
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+  </script>
+</html>
