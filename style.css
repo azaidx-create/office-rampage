@@ -301,7 +301,7 @@ h2 {
   font-size: 8px;
   letter-spacing: 1px;
 }
-#actions .punch {
+#actions .attack {
   width: 82px;
   height: 82px;
   background: var(--orange);
@@ -311,14 +311,14 @@ h2 {
     0 4px 0 #925f3f,
     inset 0 0 0 5px #d38c51;
 }
-#actions .kick {
+#actions .jump {
   background: #86baad;
   color: #142d38;
   box-shadow:
     0 4px 0 #426d68,
     inset 0 0 0 5px #689d93;
 }
-#actions .dodge {
+#actions .block {
   width: 58px;
   height: 58px;
   color: #b8d3ce;
@@ -384,11 +384,11 @@ footer {
     width: 58px;
     height: 58px;
   }
-  #actions .punch {
+  #actions .attack {
     width: 66px;
     height: 66px;
   }
-  #actions .dodge {
+  #actions .block {
     width: 48px;
     height: 48px;
   }
@@ -455,11 +455,11 @@ footer {
     width: 56px;
     height: 56px;
   }
-  #actions .punch {
+  #actions .attack {
     width: 66px;
     height: 66px;
   }
-  #actions .dodge {
+  #actions .block {
     width: 48px;
     height: 48px;
   }
@@ -493,4 +493,43 @@ footer {
   footer {
     font-size: 6px;
   }
+}
+
+/* Cold office palette; the playfield remains the visual focus. */
+:root {
+  --orange: #c8d5e2;
+  --mint: #94b8cf;
+}
+header .brand {
+  background: #bb5d4f;
+}
+.edition b {
+  color: #cf7d66;
+}
+#start,
+#resume {
+  background: #c8d5e2;
+  border-bottom-color: #788fa7;
+}
+#actions .attack {
+  background: #b45d4d;
+  color: #f5e9d3;
+  border-color: #dd9e83;
+  box-shadow:
+    0 4px 0 #69372f,
+    inset 0 0 0 5px #934d44;
+}
+#actions .jump {
+  background: #b5c6d6;
+  box-shadow:
+    0 4px 0 #4c637b,
+    inset 0 0 0 5px #8dabc3;
+}
+#overlay {
+  background: linear-gradient(
+    90deg,
+    #101a2bef 0%,
+    #101a2bbb 40%,
+    #101a2b10 100%
+  );
 }

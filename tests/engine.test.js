@@ -49,24 +49,54 @@ test("buffered punch chains into second strike and expires when stale", () => {
   tick(g, 20);
   assert.equal(g.buffer, null);
 });
-test("dodge is invulnerable, bounded and cooldown cannot be bypassed", () => {
+test("jump has an arc, cannot double-jump, and lands inside lane bounds", () => {
+  const { g } = encounter();
+  g.queue("jump");
+  tick(g, 12, { x: 1, y: 0 });
+  assert.ok(g.player.z > 25);
+  const v = g.player.vz;
+  g.queue("jump");
+  tick(g, 1);
+  assert.ok(g.player.vz < v);
+  tick(g, 60);
+  assert.equal(g.player.z, 0);
+  assert.equal(g.player.vz, 0);
+});
+test("directional block stops front hits, parries briefly, and permits rear damage", () => {
   const { g, e } = encounter();
-  g.queue("dodge");
-  tick(g, 1);
-  assert.equal(g.player.state, "dodge");
-  assert.ok(g.player.inv > 0);
+  g.player.face = 1;
+  tick(g, 1, { block: true });
   const hp = g.player.hp;
-  g.damage(g.player, e, MOVES.strike);
+  assert.equal(g.player.state, "block");
+  assert.ok(g.damage(g.player, e, MOVES.strike));
   assert.equal(g.player.hp, hp);
-  tick(g, 20);
-  g.queue("dodge");
+  assert.equal(e.state, "hurt");
+  assert.ok(g.player.guard < 100);
+  e.x = g.player.x - 30;
+  g.damage(g.player, e, MOVES.strike);
+  assert.ok(g.player.hp < hp);
+});
+test("guard breaks under repeated pressure and releasing block allows recovery", () => {
+  const { g, e } = encounter();
+  tick(g, 12, { block: true });
+  g.player.guard = 10;
+  g.damage(g.player, e, MOVES.slam);
+  assert.equal(g.player.guard, 0);
+  assert.equal(g.player.state, "hurt");
+  tick(g, 40);
+  assert.ok(g.player.guard > 0);
+});
+test("jump attack is limited to one aerial strike per jump", () => {
+  const { g } = encounter();
+  g.queue("jump");
+  tick(g, 6);
+  g.queue("attack");
   tick(g, 1);
-  assert.notEqual(g.player.state, "dodge");
-  g.player.x = g.rightLimit - 1;
-  g.player.dodgeCooldown = 0;
-  g.queue("dodge");
-  tick(g, 20, { x: 1, y: 0 });
-  assert.ok(g.player.x <= g.rightLimit);
+  assert.equal(g.player.state, "airkick");
+  tick(g, 25);
+  g.queue("attack");
+  tick(g, 1);
+  assert.notEqual(g.player.state, "airkick");
 });
 test("broken props drop coffee once and pickups clamp health", () => {
   const { g } = encounter();
@@ -178,26 +208,16 @@ test("a complete input-driven run defeats all eight enemies and exits without st
     if (e) {
       const dx = e.x - p.x,
         dy = e.y - p.y;
-      x = Math.abs(dx) > 54 ? Math.sign(dx) : 0;
+      x = Math.abs(dx) > 35 ? Math.sign(dx) : 0;
       y = Math.abs(dy) > 6 ? Math.sign(dy) : 0;
       if (x === 0 && Math.sign(dx) !== p.face) x = Math.sign(dx) * 0.1;
-      const m = MOVES[e.state];
       if (
-        m &&
-        e.time > m.active - 0.15 &&
-        Math.abs(dx) < 85 &&
-        Math.abs(dy) < 20 &&
-        p.dodgeCooldown <= 0
-      ) {
-        g.queue("dodge");
-        x = -Math.sign(dx);
-      } else if (
-        Math.abs(dx) < 65 &&
+        Math.abs(dx) < 46 &&
         Math.abs(dy) < 16 &&
         (["idle", "walk"].includes(p.state) ||
           p.time > (MOVES[p.state]?.duration || 1) - 0.13)
       )
-        g.queue("kick");
+        g.queue("attack");
     } else if (g.cleared === 3) y = p.y > 249 ? -1 : 0;
     g.step(1 / 60, { x, y });
     g.events.length = 0;
@@ -205,4 +225,31 @@ test("a complete input-driven run defeats all eight enemies and exits without st
   assert.equal(g.status, "won");
   assert.equal(g.kills, 8);
   assert.ok(g.player.hp > 0);
+});
+test("screen-space movement remains aligned after oblique projection", async () => {
+  const { project, screenToWorld } = await import("../src/office.js");
+  const origin = project(500, 300, 250);
+  for (const [x, y] of [
+    [1, 0],
+    [0, 1],
+    [-1, 0],
+    [0, -1],
+  ]) {
+    const v = screenToWorld(x, y),
+      to = project(500 + v.x, 300 + v.y, 250);
+    assert.ok(Math.abs(to.x - origin.x - x) < 0.0001);
+    assert.ok(Math.abs(to.y - origin.y - y) < 0.0001);
+  }
+});
+test("solid copier blocks grounded movement until broken", () => {
+  const g = new Game();
+  g.start();
+  g.player.x = 260;
+  g.player.y = 269;
+  tick(g, 20, { x: 1, y: 0 });
+  assert.ok(g.player.x <= 272);
+  const prop = g.props.find((p) => p.id === "p1");
+  prop.hp = 0;
+  tick(g, 10, { x: 1, y: 0 });
+  assert.ok(g.player.x > 272);
 });

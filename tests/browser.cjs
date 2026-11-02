@@ -68,7 +68,7 @@ const server = http.createServer((req, res) => {
       await page.mouse.move(box.x + box.width * 0.85, box.y + box.height * 0.5);
       await page.mouse.down();
       await page.waitForTimeout(200);
-      const button = await page.locator('[data-action="punch"]').boundingBox();
+      const button = await page.locator('[data-action="attack"]').boundingBox();
       await page.touchscreen.tap(
         button.x + button.width / 2,
         button.y + button.height / 2,
@@ -85,6 +85,18 @@ const server = http.createServer((req, res) => {
         x: 0,
         y: 0,
       });
+      await page.keyboard.down("KeyL");
+      await page.waitForTimeout(90);
+      assert.equal(
+        await page.evaluate(() => __office.game.player.state),
+        "block",
+      );
+      await page.keyboard.up("KeyL");
+      await page.waitForTimeout(50);
+      await page.keyboard.press("KeyJ");
+      await page.waitForTimeout(90);
+      assert.ok((await page.evaluate(() => __office.game.player.z)) > 0);
+      await page.waitForTimeout(800);
       await page.evaluate(() => window.dispatchEvent(new Event("blur")));
       assert.equal(await page.evaluate(() => __office.paused), true);
       await page.locator("#resume").click();

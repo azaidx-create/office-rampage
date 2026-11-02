@@ -1,13 +1,12 @@
-import { Game, MOVES, WORLD } from "./engine.js";
 import {
-  createAtlases,
   createOffice,
-  frameIndex,
-  rect,
-  text,
-  drawProp,
-  poly,
-} from "./art.js";
+  project,
+  screenToWorld,
+  drawFloor,
+  drawFurniture,
+} from "./office.js";
+import { Game, MOVES, WORLD } from "./engine.js";
+import { createAtlases, frameIndex, rect, text, poly } from "./art.js";
 const $ = (s) => document.querySelector(s),
   canvas = $("#game"),
   ctx = canvas.getContext("2d");
@@ -31,6 +30,7 @@ let joystick = null,
   joy = { x: 0, y: 0 },
   soundEnabled = false,
   audio = null;
+const blockPointers = new Set();
 function tone(
   freq,
   duration = 0.07,
@@ -83,14 +83,36 @@ function events() {
     if (e.type === "hit") {
       shake = e.heavy ? 5 : 2.5;
       hitStop = e.heavy ? 0.065 : 0.035;
-      burst(e.x, e.y, ["#fff4c9", "#edb66f", "#e1795c"], e.heavy ? 22 : 12);
+      const q = project(e.x, e.y + 44, camera);
+      burst(
+        q.x,
+        q.y - 44,
+        ["#fff4c9", "#edb66f", "#e1795c"],
+        e.heavy ? 22 : 12,
+      );
       tone(e.heavy ? 110 : 180, 0.09, "sawtooth", 0.06, 45);
-      if (e.hero) float("-HP", e.x, e.y - 20, "#f19484");
+      if (e.hero) float("-HP", q.x, q.y - 64, "#f19484");
+    } else if (e.type === "block") {
+      const q = project(e.x, e.y + 42, camera);
+      burst(
+        q.x + game.player.face * 15,
+        q.y - 42,
+        ["#e6faff", "#87c4ed"],
+        9,
+        80,
+      );
+      tone(e.parry ? 800 : 340, 0.1, "triangle");
+      if (e.parry) float("PARRY", q.x, q.y - 65, "#9de4ff");
+    } else if (e.type === "guardbreak") {
+      float("GUARD BREAK", 320, 160, "#e89478");
+    } else if (e.type === "jump") {
+      tone(200, 0.1, "triangle", 0.02, 420);
     } else if (e.type === "swing") tone(220, 0.045, "triangle", 0.025, 80);
     else if (e.type === "debris") {
+      const q = project(e.x, e.y + 25, camera);
       burst(
-        e.x,
-        e.y,
+        q.x,
+        q.y - 25,
         e.plant
           ? ["#80a782", "#b08065", "#d3b08b"]
           : ["#b1d9cb", "#557c8b", "#e0d8bd"],
@@ -99,9 +121,11 @@ function events() {
       );
     } else if (e.type === "break") {
       tone(90, 0.2, "sawtooth", 0.035, 20);
-      float("DAMAGE +100", game.player.x, game.player.y - 90);
+      const q = project(game.player.x, game.player.y, camera);
+      float("PROPERTY DAMAGE", q.x, q.y - 85);
     } else if (e.type === "heal") {
-      float("COFFEE +22 HP", e.x, e.y, "#9ee6ba");
+      const q = project(e.x, e.y + 65, camera);
+      float("COFFEE +22 HP", q.x, q.y - 65, "#9ee6ba");
       tone(660, 0.12, "sine", 0.04, 990);
     } else if (e.type === "dodge") {
       burst(game.player.x, game.player.y - 2, ["#8cacaa", "#c3bfa4"], 6, 45);
@@ -117,6 +141,7 @@ function events() {
 }
 function clearInput() {
   keys.clear();
+  blockPointers.clear();
   joy = { x: 0, y: 0 };
   joystick = null;
   $("#knob").style.transform = "";
@@ -177,15 +202,15 @@ function endScreen() {
   $("#start").innerHTML = "ANOTHER SHIFT <span>↻</span>";
   $(".small").textContent = win
     ? `Cleared in ${Math.floor(game.time / 60)}:${String(Math.floor(game.time % 60)).padStart(2, "0")} · Try for a higher score.`
-    : "Dodge the red wind-up. Kick for reach. Smash copiers for coffee.";
+    : "Hold BLOCK facing danger. JUMP + ATTACK for a flying kick.";
   $(".stamp").style.display = "none";
 }
 const actionKeys = {
-  KeyJ: "punch",
-  Space: "punch",
-  KeyK: "kick",
-  KeyL: "dodge",
-  ShiftLeft: "dodge",
+  KeyJ: "jump",
+  KeyZ: "jump",
+  Space: "jump",
+  KeyK: "attack",
+  KeyX: "attack",
 };
 window.addEventListener("keydown", (e) => {
   if (
@@ -249,11 +274,13 @@ document.querySelectorAll("[data-action]").forEach((button) => {
     active.add(e.pointerId);
     button.setPointerCapture(e.pointerId);
     button.classList.add("pressed");
-    if (!paused) game.queue(button.dataset.action);
+    if (button.dataset.action === "block") blockPointers.add(e.pointerId);
+    else if (!paused) game.queue(button.dataset.action);
   });
   for (const name of ["pointerup", "pointercancel", "lostpointercapture"])
     button.addEventListener(name, (e) => {
       active.delete(e.pointerId);
+      blockPointers.delete(e.pointerId);
       if (!active.size) button.classList.remove("pressed");
     });
 });
@@ -264,220 +291,153 @@ function shadow(x, y, width = 20, alpha = 0.28) {
   ctx.fillRect(Math.round(x - width + 4), Math.round(y - 4), width * 2 - 8, 8);
 }
 function drawActor(a) {
-  const scale = a.type === "boss" ? 1.36 : 1.12,
-    index = frameIndex(a),
-    sprite = atlases[a.type][a.state]?.[index] || atlases[a.type].idle[0];
-  shadow(a.x, a.y, a.type === "boss" ? 25 : 19, a.dead ? 0.15 : 0.3);
+  const ground = project(a.x, a.y, camera),
+    q = { x: ground.x, y: ground.y - (a.z || 0) };
+  const scale = a.type === "boss" ? 1.12 : 1,
+    wide = scale * 0.78;
+  const sprite =
+    atlases[a.type][a.state]?.[frameIndex(a)] || atlases[a.type].idle[0];
+  shadow(ground.x, ground.y, 15, a.dead ? 0.12 : 0.3);
   ctx.save();
-  ctx.translate(Math.round(a.x), Math.round(a.y));
+  ctx.translate(Math.round(q.x), Math.round(q.y));
   ctx.scale(a.face, 1);
   if (a.inv > 0 && a.type === "hero" && Math.floor(clock * 20) % 2 === 0)
     ctx.globalAlpha = 0.5;
-  if (a.state === "dodge") {
-    ctx.globalAlpha = 0.2;
-    ctx.drawImage(
-      sprite,
-      -39 * scale - 16,
-      -85 * scale,
-      96 * scale,
-      92 * scale,
-    );
-    ctx.globalAlpha = 0.8;
-  }
   ctx.drawImage(
     sprite,
-    Math.round(-39 * scale),
+    Math.round(-39 * wide),
     Math.round(-85 * scale),
-    Math.round(96 * scale),
+    Math.round(96 * wide),
     Math.round(92 * scale),
   );
   ctx.restore();
   if (!a.dead && a.type !== "hero") {
-    if (a.hp < a.maxHp || a.type === "boss") {
-      rect(ctx, a.x - 19, a.y - 100 * scale, 38, 3, "#1b303c");
+    if (a.hp < a.maxHp) {
+      rect(ctx, q.x - 14, q.y - 86 * scale, 28, 3, "#1b2033");
       rect(
         ctx,
-        a.x - 19,
-        a.y - 100 * scale,
-        (38 * a.hp) / a.maxHp,
+        q.x - 14,
+        q.y - 86 * scale,
+        (28 * a.hp) / a.maxHp,
         2,
-        a.type === "boss" ? "#e2aa76" : "#cd8b7e",
+        "#d8a189",
       );
     }
-    const move = MOVES[a.state];
-    if (move && a.time < move.active) {
-      text(ctx, "!", a.x, a.y - 96 * scale, 17, "#ffc783", "center");
-      rect(ctx, a.x - 12, a.y + 4, 24 * (a.time / move.active), 2, "#ed866c");
-    }
+    const m = MOVES[a.state];
+    if (m && a.time < m.active)
+      text(ctx, "!", q.x, q.y - 88 * scale, 12, "#f4c782", "center");
   }
-  if (
-    a === game.player &&
-    MOVES[a.state] &&
-    a.time >= MOVES[a.state].active &&
-    a.time < MOVES[a.state].end
-  ) {
-    ctx.save();
-    ctx.translate(a.x, a.y);
-    ctx.scale(a.face, 1);
-    const heavy = a.state === "kick" || a.state === "punch3";
-    poly(
-      ctx,
-      heavy
-        ? [
-            [25, -62],
-            [58, -65],
-            [72, -48],
-            [57, -32],
-            [47, -34],
-            [60, -47],
-            [52, -59],
-          ]
-        : [
-            [25, -60],
-            [46, -64],
-            [59, -53],
-            [53, -42],
-            [47, -44],
-            [51, -52],
-            [42, -59],
-          ],
-      "#f4e4b4",
-    );
-    ctx.restore();
+  if (a === game.player) {
+    const m = MOVES[a.state];
+    if (m && a.time >= m.active && a.time < m.end) {
+      const d = a.face;
+      poly(
+        ctx,
+        [
+          [q.x + d * 14, q.y - 48],
+          [q.x + d * 38, q.y - 53],
+          [q.x + d * 49, q.y - 42],
+          [q.x + d * 37, q.y - 35],
+          [q.x + d * 41, q.y - 42],
+          [q.x + d * 31, q.y - 48],
+        ],
+        "#f2e7cf",
+      );
+    }
+    // A subtle ground marker keeps the player identifiable behind foreground desks.
+    rect(ctx, ground.x - 8, ground.y + 5, 16, 1, "#eadc9c");
   }
 }
 function hud() {
   const p = game.player;
-  rect(ctx, 14, 12, 184, 40, "#142b35e8");
-  rect(ctx, 14, 12, 3, 40, "#e7b17c");
-  text(ctx, "A. EMPLOYEE", 24, 24, 9, "#f5dfb5");
-  text(ctx, "OVERTIME: DENIED", 188, 24, 6, "#96afa7", "right");
-  rect(ctx, 24, 31, 164, 8, "#3b4a50");
-  rect(
-    ctx,
-    25,
-    32,
-    (162 * p.hp) / p.maxHp,
-    6,
-    p.hp < 40 ? "#dd8974" : "#8ed2b8",
-  );
-  for (let i = 1; i < 8; i++) rect(ctx, 24 + i * 20.5, 32, 1, 6, "#152c3555");
-  text(ctx, `${Math.ceil(p.hp)} / ${p.maxHp}`, 24, 47, 6, "#d3d4bb");
-  text(
-    ctx,
-    p.dodgeCooldown > 0 ? "DODGE RECHARGING" : "DODGE READY",
-    188,
-    47,
-    6,
-    p.dodgeCooldown > 0 ? "#a3a99b" : "#b5d5b9",
-    "right",
-  );
-  rect(ctx, 450, 12, 176, 40, "#142b35e8");
-  text(ctx, "FLOOR 01", 460, 24, 8, "#88baaf");
+  rect(ctx, 10, 10, 173, 29, "#111b2ddc");
+  text(ctx, "EMPLOYEE", 17, 21, 8, "#eee8d6");
+  rect(ctx, 17, 26, 156, 6, "#4e3d4a");
+  rect(ctx, 18, 27, (154 * p.hp) / p.maxHp, 4, "#d86656");
+  rect(ctx, 17, 35, 156, 2, "#303f57");
+  rect(ctx, 17, 35, (156 * p.guard) / 100, 2, "#7ea7d3");
+  rect(ctx, 451, 10, 179, 29, "#111b2ddc");
+  text(ctx, "FLOOR 01", 461, 21, 8, "#d0dbdc");
   text(
     ctx,
     String(game.score).padStart(6, "0"),
-    615,
-    43,
-    18,
-    "#f4d29a",
+    621,
+    33,
+    12,
+    "#ead3a3",
     "right",
   );
-  text(ctx, `${game.kills}/8 OUT`, 460, 43, 8, "#c1c7ad");
-  if (game.combo > 1 && game.time < game.comboUntil) {
-    text(ctx, `${game.combo} HIT`, 615, 72, 21, "#efbd83", "right");
-    text(
-      ctx,
-      game.combo >= 6 ? "UNPRODUCTIVE!" : "KEEP IT GOING",
-      614,
-      83,
-      6,
-      "#d3d0b1",
-      "right",
-    );
-  }
+  text(ctx, "DAMAGE $" + game.damageValue, 461, 33, 6, "#a8b8cc");
+  if (game.combo > 1 && game.time < game.comboUntil)
+    text(ctx, game.combo + " HITS", 618, 62, 17, "#f1ce8b", "right");
   if (game.messageUntil > game.time) {
-    rect(ctx, 164, 65, 312, 22, "#152e38dd");
-    text(ctx, game.message, 320, 79, 9, "#e9d0a3", "center");
+    rect(ctx, 135, 48, 370, 18, "#192337dc");
+    text(ctx, game.message, 320, 60, 8, "#dfe1d9", "center");
   }
   const boss = game.enemies.find((e) => e.type === "boss" && !e.dead);
   if (boss) {
-    rect(ctx, 212, 329, 216, 16, "#172c37eb");
-    text(ctx, "THE FLOOR MANAGER", 320, 327, 7, "#ebc594", "center");
-    rect(ctx, 216, 334, 208, 5, "#4b3f50");
-    rect(ctx, 216, 334, (208 * boss.hp) / boss.maxHp, 5, "#d69b7f");
-  } else if (game.cleared > 0 && !game.locked) {
+    rect(ctx, 211, 334, 218, 13, "#162030dd");
+    rect(ctx, 216, 339, (208 * boss.hp) / boss.maxHp, 4, "#b35c63");
+    text(ctx, "FLOOR MANAGER", 320, 331, 7, "#ddd4bd", "center");
+  } else if (game.cleared > 0 && !game.locked)
     text(
       ctx,
-      game.cleared === 3 ? "ELEVATOR →" : "GO →",
-      560,
-      189 + Math.sin(clock * 5) * 2,
-      14,
-      "#f3d7a0",
+      game.cleared === 3 ? "EXIT ↗" : "GO ↗",
+      555,
+      103,
+      13,
+      "#eee2b5",
     );
-  }
-  const progress = Math.max(0, Math.min(1, p.x / WORLD.width));
-  rect(ctx, 250, 17, 140, 2, "#637b7777");
-  rect(ctx, 250, 17, 140 * progress, 2, "#edbb87");
-  for (let i = 0; i < 3; i++)
-    rect(ctx, 250 + i * 70, 15, 4, 6, game.cleared > i ? "#a6d7b9" : "#a18d78");
 }
 function render() {
-  ctx.clearRect(0, 0, 640, 360);
   ctx.imageSmoothingEnabled = false;
+  rect(ctx, 0, 0, 640, 360, "#101b2f");
   ctx.save();
-  const sx = shake ? Math.round((Math.random() - 0.5) * shake * 2) : 0,
-    sy = shake ? Math.round((Math.random() - 0.5) * shake) : 0;
-  ctx.translate(-Math.round(camera) + sx, sy);
-  ctx.drawImage(office, 0, 0);
-  // Ceiling dust drifts through the light; generated deterministically from clock.
-  for (let i = 0; i < 25; i++) {
-    const x = (i * 97 + clock * 4) % 1960,
-      y = 67 + ((i * 31) % 130) + Math.sin(clock + i) * 5;
-    rect(ctx, x, y, 1, 1, "#f4e6bf44");
-  }
-  if (game.locked) {
-    const x = game.rightLimit + 12;
-    for (let y = 225; y < 322; y += 14) {
-      poly(
-        ctx,
-        [
-          [x - 6, y],
-          [x + 6, y + 5],
-          [x + 6, y + 10],
-          [x - 6, y + 5],
-        ],
-        "#e7b67988",
-      );
+  if (shake)
+    ctx.translate(
+      Math.round((Math.random() - 0.5) * shake * 2),
+      Math.round((Math.random() - 0.5) * shake),
+    );
+  drawFloor(ctx, office, camera);
+  const decorations = [
+    ...office.decorations,
+    { x: 1910, y: 250, type: "elevator" },
+  ];
+  const all = [
+    ...decorations.map((d) => ({ depth: project(d.x, d.y, camera).y, d })),
+    ...game.props.map((d) => ({ depth: project(d.x, d.y, camera).y, d })),
+    ...game.enemies.map((a) => ({ depth: project(a.x, a.y, camera).y, a })),
+    { depth: project(game.player.x, game.player.y, camera).y, a: game.player },
+  ].sort((a, b) => a.depth - b.depth);
+  for (const item of all) {
+    if (item.a) drawActor(item.a);
+    else {
+      const q = project(item.d.x, item.d.y, camera),
+        p = project(game.player.x, game.player.y, camera);
+      const obscures =
+        item.d.type === "cubicle" &&
+        Math.abs(q.x - p.x) < 95 &&
+        q.y > p.y &&
+        q.y - p.y < 75;
+      drawFurniture(ctx, office, item.d, camera, obscures ? 0.38 : 1);
     }
-    text(ctx, "LOCKDOWN", x - 10, 216, 7, "#ebc495", "right");
-  }
-  if (game.cleared === 3) {
-    rect(ctx, 1842, 80, 72, 134, "#172e3b");
-    rect(ctx, 1850, 86, 57, 128, "#314e57");
-    rect(ctx, 1858, 95, 40, 118, "#698880");
-    rect(ctx, 1842, 214, 72, 3, "#d5c7a0");
   }
   for (const item of game.pickups)
     if (!item.taken) {
-      const y = item.y + Math.sin(clock * 5) * 2;
-      shadow(item.x, item.y, 8, 0.18);
-      rect(ctx, item.x - 5, y - 17, 10, 12, "#eee1b9");
-      rect(ctx, item.x + 5, y - 15, 4, 7, "#b9c5ad");
-      rect(ctx, item.x - 3, y - 16, 6, 2, "#73564a");
-      rect(ctx, item.x - 4, y - 11, 8, 3, "#d69064");
-      rect(ctx, item.x, y - 23 - ((clock * 8) % 6), 1, 4, "#dce0c299");
+      const q = project(item.x, item.y, camera),
+        y = q.y + Math.sin(clock * 5) * 2;
+      rect(ctx, q.x - 4, y - 13, 8, 11, "#ddd9b8");
+      rect(ctx, q.x + 4, y - 11, 3, 6, "#a8b8b9");
+      rect(ctx, q.x - 2, y - 13, 4, 2, "#5b4644");
     }
-  const items = [
-    ...game.props.map((p) => ({ y: p.y, prop: p })),
-    ...game.enemies.map((a) => ({ y: a.y, a })),
-    { y: game.player.y, a: game.player },
-  ].sort((a, b) => a.y - b.y);
-  for (const item of items) {
-    if (item.prop) {
-      shadow(item.prop.x, item.prop.y, 22, 0.2);
-      drawProp(ctx, item.prop);
-    } else drawActor(item.a);
+  if (game.locked) {
+    const q = project(game.rightLimit + 10, 300, camera);
+    text(ctx, "CLEAR AREA", q.x, q.y - 30, 7, "#daa38c", "center");
+  }
+  if (game.cleared === 3) {
+    const q = project(1910, 250, camera);
+    rect(ctx, q.x - 8, q.y - 95, 25, 80, "#14273a");
+    text(ctx, "EXIT", q.x, q.y - 104, 9, "#a8dfb8", "center");
   }
   for (const p of particles) {
     ctx.globalAlpha = Math.min(1, p.life * 4);
@@ -490,12 +450,7 @@ function render() {
   }
   ctx.globalAlpha = 1;
   ctx.restore();
-  // Subtle CRT scanlines are tied to the pixel grid, never the display resolution.
-  for (let y = 0; y < 360; y += 3) rect(ctx, 0, y, 640, 1, "#0c23320b");
   hud();
-  if (game.status === "ready") {
-    text(ctx, "AFTER HOURS", 520, 109, 9, "#eed8af", "center");
-  }
 }
 function loop(now) {
   const elapsed = last ? Math.min((now - last) / 1000, 0.1) : 0;
@@ -521,14 +476,17 @@ function loop(now) {
           joy.y +
           (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0) -
           (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0);
-        game.step(1 / 60, input);
+        const movement = screenToWorld(input.x, input.y);
+        input.block =
+          keys.has("KeyL") || keys.has("KeyC") || blockPointers.size > 0;
+        game.step(1 / 60, { ...movement, block: input.block });
         events();
         accumulator -= 1 / 60;
       }
     }
     const target = Math.max(
       0,
-      Math.min(WORLD.width - 640, game.player.x - 230),
+      Math.min(WORLD.width - 400, game.player.x - 200),
     );
     camera += (target - camera) * Math.min(1, elapsed * 8);
     for (const p of particles) {
@@ -565,5 +523,6 @@ if (new URLSearchParams(location.search).has("debug"))
     input,
     joy: () => joy,
     canvas,
+    project,
   };
 requestAnimationFrame(loop);

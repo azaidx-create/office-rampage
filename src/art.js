@@ -6,13 +6,13 @@ export const PALETTES = {
     light: "#f5f1d7",
     shade: "#8ba9a7",
     dark: "#4a6a76",
-    pants: "#314e68",
-    pantLight: "#577b8c",
+    pants: "#514635",
+    pantLight: "#827259",
     skin: "#e5ac7e",
     skinLight: "#ffd2a0",
     skinShade: "#ae705e",
     hair: "#34303a",
-    accent: "#da7159",
+    accent: "#393d48",
   },
   guard: {
     shirt: "#506a82",
@@ -379,16 +379,102 @@ export const POSES = {
     }),
   ],
 };
+POSES.jump = [
+  pose({
+    body: [0, 5],
+    frontLeg: [12, 60, 6, 69],
+    backLeg: [-10, 62, -16, 72],
+    frontArm: [15, 31, 18, 23],
+  }),
+  pose({
+    body: [0, -2],
+    head: [0, -2],
+    frontLeg: [16, 56, 8, 64],
+    backLeg: [-13, 58, -20, 67],
+    frontArm: [17, 27, 22, 18],
+    backArm: [-15, 29, -20, 21],
+  }),
+  pose({
+    body: [1, -1],
+    head: [1, -1],
+    frontLeg: [15, 57, 8, 67],
+    backLeg: [-11, 60, -16, 70],
+    frontArm: [18, 29, 23, 23],
+  }),
+  pose({
+    body: [0, 2],
+    frontLeg: [8, 63, 13, 75],
+    backLeg: [-6, 65, -10, 76],
+    frontArm: [16, 35, 20, 30],
+  }),
+];
+POSES.airkick = [
+  pose({
+    body: [-3, 0],
+    frontLeg: [17, 56, 8, 64],
+    frontArm: [17, 32, 12, 25],
+  }),
+  pose({
+    body: [-6, 0],
+    head: [-6, 0],
+    frontLeg: [25, 49, 42, 45],
+    backLeg: [-11, 61, -18, 69],
+    frontArm: [13, 32, 4, 24],
+  }),
+  pose({
+    body: [-7, 1],
+    head: [-6, 1],
+    frontLeg: [26, 48, 43, 45],
+    backLeg: [-13, 62, -21, 71],
+    frontArm: [12, 33, 3, 26],
+  }),
+  pose({
+    body: [-3, 2],
+    frontLeg: [17, 56, 14, 66],
+    backLeg: [-9, 64, -13, 73],
+  }),
+];
+POSES.block = [
+  pose({
+    body: [-2, 2],
+    head: [-3, 3],
+    frontArm: [17, 28, 12, 15],
+    backArm: [-2, 30, 8, 18],
+  }),
+  pose({
+    body: [-3, 3],
+    head: [-4, 4],
+    frontArm: [16, 29, 11, 16],
+    backArm: [-3, 31, 7, 19],
+  }),
+  pose({
+    body: [-2, 3],
+    head: [-3, 4],
+    frontArm: [18, 29, 12, 16],
+    backArm: [-1, 31, 8, 19],
+  }),
+];
 function drawActor(c, p, colors, type) {
   const C = colors,
     ox = 39,
     oy = 4,
     outline = "#172533";
-  const r = (x, y, w, h, col) => rect(c, ox + x, oy + y, w, h, col);
+  let headMode = false;
+  const point = (x, y) =>
+    headMode
+      ? [
+          ox + p.head[0] + (x - p.head[0]) * 0.72,
+          oy + 27 + p.head[1] + (y - 27 - p.head[1]) * 0.72,
+        ]
+      : [ox + x, oy + y];
+  const r = (x, y, w, h, col) => {
+    const [sx, sy] = point(x, y);
+    rect(c, sx, sy, w * (headMode ? 0.72 : 1), h * (headMode ? 0.72 : 1), col);
+  };
   const P = (points, col) =>
     poly(
       c,
-      points.map(([x, y]) => [x + ox, y + oy]),
+      points.map(([x, y]) => point(x, y)),
       col,
     );
   const S = (a, b, w, col) =>
@@ -487,6 +573,7 @@ function drawActor(c, p, colors, type) {
   r(bx + 7, 37 + by, 4, 4, C.shade);
   r(bx + 8, 37 + by, 2, 2, C.light);
   arm(p.frontArm, false);
+  headMode = true;
   const hx = p.head[0],
     hy = p.head[1];
   r(hx - 4, 22 + hy, 9, 7, C.skinShade);
@@ -578,8 +665,12 @@ export function createAtlases() {
 export function frameIndex(a) {
   const count = POSES[a.state]?.length || 4;
   if (a.state === "walk") return Math.floor(a.walkTime * 12) % count;
+  if (a.state === "block") return Math.floor(a.time * 7) % count;
+  if (a.state === "jump")
+    return a.vz > 150 ? 0 : a.vz > 0 ? 1 : a.vz > -170 ? 2 : 3;
   if (a.state === "idle") return Math.floor(a.time * 5) % count;
   const durations = {
+    airkick: 0.4,
     punch1: 0.32,
     punch2: 0.34,
     punch3: 0.46,

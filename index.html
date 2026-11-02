@@ -23,7 +23,7 @@
     <main id="app">
       <header>
         <a class="brand" href="./">OR<span>OFFICE RAMPAGE</span></a>
-        <div class="edition">OVERTIME EDITION <b>01</b></div>
+        <div class="edition">CUBICLE RIOT <b>01</b></div>
         <button id="sound" aria-label="Enable sound">SOUND OFF</button
         ><button id="pause" aria-label="Pause game">Ⅱ</button>
       </header>
@@ -32,7 +32,7 @@
           id="game"
           width="640"
           height="360"
-          aria-label="Office beat-em-up. Use WASD to move, J punch, K kick, L dodge."
+          aria-label="Office beat-em-up. Use WASD to move, J jump, K attack, L block."
           tabindex="0"
         ></canvas>
         <div id="overlay">
@@ -65,16 +65,17 @@
           <span>MOVE</span>
         </div>
         <div class="control-note">
-          <b>MAKE AN EXIT.</b><span>WASD move · J punch · K kick · L dodge</span
-          ><span>Chain 3 punches for a finisher.</span>
+          <b>MAKE AN EXIT.</b
+          ><span>WASD move · J jump · K attack · L block</span
+          ><span>Jump + attack to flying kick. Hold block to guard.</span>
         </div>
         <div id="actions">
-          <button data-action="dodge" class="dodge" aria-label="Dodge">
-            <b>↝</b><span>DODGE</span></button
-          ><button data-action="kick" class="kick" aria-label="Kick">
-            <b>K</b><span>KICK</span></button
-          ><button data-action="punch" class="punch" aria-label="Punch">
-            <b>J</b><span>PUNCH</span>
+          <button data-action="block" class="block" aria-label="Block">
+            <b>L</b><span>BLOCK</span></button
+          ><button data-action="jump" class="jump" aria-label="Jump">
+            <b>J</b><span>JUMP</span></button
+          ><button data-action="attack" class="attack" aria-label="Attack">
+            <b>K</b><span>ATTACK</span>
           </button>
         </div>
       </section>

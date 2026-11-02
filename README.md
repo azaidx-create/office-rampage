@@ -1,63 +1,58 @@
-# Office Rampage — Overtime
+# Office Rampage — Cubicle Riot
 
-A dependency-free HTML5 office beat-'em-up with an original pixel-art renderer and a complete playable first floor. Built around iPhone landscape play; portrait and desktop layouts are supported.
+An original HTML5 beat-'em-up for iPhone landscape and desktop, revised toward the office perspective and Jump / Attack / Block controls of [Rising Up](https://twitwi.itch.io/risingup).
 
 **[Play](https://azaidx-create.github.io/office-rampage/)** · **[Animation Lab](https://azaidx-create.github.io/office-rampage/tools/animation-lab.html)**
 
-![Actual WebKit gameplay capture](docs/level-preview.png)
+![Actual WebKit gameplay](docs/level-preview.png)
 
-## Play
+## Controls
 
-- Touch: drag the left joystick; tap **PUNCH**, **KICK**, or **DODGE** with the other thumb.
-- Keyboard: **WASD/arrows** move, **J/Space** punch, **K** kick, **L/Shift** dodge, **P/Escape** pause.
-- Tap punches in succession to chain a three-hit combo. Attacks buffer during recovery.
-- Watch enemy wind-ups. Dodge through danger; it has a short cooldown.
-- Smash copiers and plants, then collect coffee for 22 HP.
-- Clear three encounters (eight opponents including the floor manager), then enter the elevator at the upper-right end of the floor.
-- Sound is opt-in. The game pauses on focus loss or when the page becomes hidden.
+| Action | Touch         | Keyboard      |
+| ------ | ------------- | ------------- |
+| Move   | Left joystick | WASD / arrows |
+| Jump   | JUMP          | J / Z / Space |
+| Attack | ATTACK        | K / X         |
+| Block  | Hold BLOCK    | Hold L / C    |
+| Pause  | Pause button  | P / Escape    |
 
-## What changed in v2
+Chain attacks for a three-hit combo. Jump then attack for an aerial kick. Face an incoming hit while holding block; the blue guard meter depletes under pressure and refills after release. Blocking just before impact parries. Smash furniture to clear the aisle, rack up property damage, and collect coffee from copiers/plants for health.
 
-- **63 discrete authored poses per character palette, across 11 states.** Startup rasterization creates 252 sprite frames for the employee, intern, guard and manager. Playback selects whole frames; it does not rotate limbs or move static character cutouts. The Animation Lab supports pause and frame stepping.
-- Fixed-step combat with startup/active/recovery windows, per-swing hit tracking, lane/facing checks, enemy telegraphs, combo buffering, invulnerability and a dodge cooldown.
-- A 1,960-pixel scrolling office: sunset skyline, window blinds, monitors, keyboards, mugs, task chairs, filing cabinets, noticeboards, meeting room, breakable copiers/plants and an opening exit elevator.
-- Depth sorting, pixel shadows, debris, hit sparks, hit-stop, camera shake, floating pickups and synthesized sound effects.
-- Safe-area-aware touch controls, pointer capture/cancellation, desktop keyboard controls, pause/resume, defeat/restart and a clear victory condition.
-- Separate simulation, artwork and presentation modules; no CDN, image download or build step needed to play.
+Clear three encounters and eight opponents, including the floor manager, then enter the elevator at the far end of the aisle. Sound is opt-in. Focus loss and hidden pages pause the game.
 
-## Run locally
+## This revision
+
+- Angled, depth-sorted cubicle aisles replacing the flat sunset office.
+- CRT monitors, partition fabric, wall memos, noticeboards, copier trays, office chairs, carpet texture and an elevator.
+- Smaller heads and slimmer character proportions, with discrete raster animation frames, including new jump, aerial kick and block sequences.
+- Jump physics, directional blocking, guard breaks, a short parry window and one aerial attack per jump.
+- Solid breakable desks, chairs and copiers, plus a property-damage counter.
+- Screen-relative joystick movement through the oblique projection; foreground cubicles fade when they obstruct the player.
+- Original artwork/code; no downloaded reference sprites. [Reference observations and limits](docs/reference-notes.md).
+
+## Run and test
 
 ```sh
 python3 -m http.server 8000
 # Open http://localhost:8000
-```
-
-ES modules need HTTP(S); opening index.html as a file:// URL is unsupported. GitHub Pages deploys through the repository's existing workflow.
-
-## Tests
-
-```sh
 npm test
-# Optional browser suite (Node 20+):
+
+# Optional WebKit browser tests:
 npm install --no-save playwright@1.62.1
 npx playwright install --with-deps webkit
-node tests/browser.cjs
+npm run test:browser
 ```
 
-Validated for this revision:
+No runtime dependencies, CDN or build step. ES modules require HTTP(S), not file://. The existing GitHub Pages workflow publishes main.
 
-- 10 simulation/animation regression tests, including an input-driven full-level win without health/stat overrides.
-- WebKit at 844×390, 390×844, 667×375 and 1280×800.
-- Start, movement, simultaneous joystick/attack input, released input, pause/resume, focus loss, control bounds, raster-frame uniqueness, defeat/restart and no uncaught browser errors.
-
-Browser emulation is not a physical iPhone test. Real-device Safari performance, audio routing and home-screen safe areas still deserve device testing. This is one complete floor, not a multi-level campaign.
+Validation: 15 simulation/projection/animation tests, including an input-driven full-level clear without health overrides. WebKit checks at 844×390, 390×844, 667×375 and 1280×800 cover touch/keyboard input, simultaneous movement and attack, jump, held block, pause, focus loss, release, restart, bounds and distinct animation frames. Physical iPhone testing remains outstanding.
 
 ## Source
 
-- `src/engine.js`: deterministic simulation and encounter progression.
-- `src/art.js`: palettes, authored frame poses, rasterization and office artwork.
-- `src/game.js`: input, animation playback, audio, particles, camera and HUD.
-- `style.css`: responsive layout and touch controls.
-- `tools/animation-lab.html`: frame-by-frame visual inspection.
+- `src/engine.js`: fixed-step combat, collision, jump/guard and encounters.
+- `src/art.js`: original character palettes and authored raster animation frames.
+- `src/office.js`: oblique projection and cached office furniture/scene artwork.
+- `src/game.js`: input, animation playback, sound, camera, particles and UI.
+- `tools/animation-lab.html`: pause and inspect individual frames.
 
-Add `?debug` locally to expose `window.__office` for inspection. Normal play does not expose the test interface.
+The `?debug` query enables `window.__office` for local inspection. Normal play does not expose it.
