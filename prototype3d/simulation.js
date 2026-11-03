@@ -5,7 +5,7 @@ export class Arena {
  }
  startStage(stage,fresh=false){
   const hp=fresh?100:Math.min(100,(this.player?.hp||70)+35);
-  this.stage=stage;this.player={x:-8,z:2,hp,angle:Math.PI/2,t:0,action:'idle',cool:0,weapon:0};
+  this.stage=stage;this.player={x:-8,z:2,hp,angle:Math.PI/2,t:0,action:'idle',cool:0,weapon:0,dodgeCool:0,invulnerable:0};
   this.pipe={x:-5,z:2,taken:false,uses:14};
   this.props=[{x:-2,z:-3,hp:60},{x:8,z:-3,hp:60},{x:16,z:-3,hp:60}];
   this.enemies=[
@@ -28,6 +28,7 @@ export class Arena {
   a.action='attack';a.t=0;a.cool=a===this.player?(a.weapon?.82:.44):(a.kind==='boss'?1.25:1.5);a.hit=false;a.attackDuration=a.weapon?.82:.44;a.attackWeapon=!!a.weapon;
   if(a===this.player)this.pendingAttack=0;
  }
+ dodge(input={}){const p=this.player;if(this.status!=='playing'||!p.hp||p.dodgeCool>0||!['idle','walk'].includes(p.action))return false;const x=input.x||Math.sin(p.angle),z=input.z||Math.cos(p.angle),n=Math.max(.01,Math.hypot(x,z));p.dodgeX=x/n;p.dodgeZ=z/n;p.angle=Math.atan2(p.dodgeX,p.dodgeZ);p.action='dodge';p.t=0;p.dodgeCool=1.25;p.invulnerable=.48;this.message='DODGE';return true}
  pickup(){const p=this.player;if(this.status==='playing'&&!this.pipe.taken&&Math.hypot(p.x-this.pipe.x,p.z-this.pipe.z)<1.6){this.pipe.taken=true;p.weapon=this.pipe.uses;this.message='STEEL PIPE · '+p.weapon+' swings';return true}return false}
  move(a,x,z,dt){
   let nx=Math.max(-10.5,Math.min(24.5,a.x+x*dt)),nz=Math.max(-3.8,Math.min(3.8,a.z+z*dt));
@@ -36,7 +37,7 @@ export class Arena {
   a.x=nx;a.z=nz;
  }
  damage(target,source){
-  if(target.hp<=0)return;
+  if(target.hp<=0||target.invulnerable>0)return;
   const amount=source===this.player?(source.weapon?30:17):(source.kind==='boss'?22:10);
   target.hp=Math.max(0,target.hp-amount);target.action=target.hp?'hurt':'down';target.t=0;target.cool=.65;
   this.move(target,Math.sin(source.angle)*2.2,Math.cos(source.angle)*2.2,.12);this.flash=.09;this.hits++;
@@ -48,7 +49,7 @@ export class Arena {
  step(dt,input={}){
   if(this.status!=='playing')return;
   dt=Math.min(dt,.04);this.flash=Math.max(0,this.flash-dt);
-  const p=this.player,active=this.activeEnemies;
+  const p=this.player,active=this.activeEnemies;p.dodgeCool=Math.max(0,p.dodgeCool-dt);p.invulnerable=Math.max(0,p.invulnerable-dt);
   for(const a of [p,...this.enemies]){
    a.t+=dt;a.cool=Math.max(0,a.cool-dt);
    if(a.action==='hurt'&&a.t>.32)a.action='idle';
@@ -65,6 +66,7 @@ export class Arena {
   }
   if(this.pendingAttack>0){this.pendingAttack=Math.max(0,this.pendingAttack-dt);if(p.cool<=0&&['idle','walk'].includes(p.action))this.attack(p)}
   if(!p.hp){this.status='lost';return}
+  if(p.action==='dodge'){this.move(p,p.dodgeX*8.2,p.dodgeZ*8.2,dt);if(p.t>=.48)p.action='idle'}
   if(['idle','walk'].includes(p.action)){let x=input.x||0,z=input.z||0,n=Math.max(1,Math.hypot(x,z));x/=n;z/=n;if(x||z){p.angle=Math.atan2(x,z);this.move(p,x*3.4,z*3.4,dt);p.action='walk'}else p.action='idle'}
   for(const e of active){
    if(!e.hp||!['idle','walk'].includes(e.action))continue;
