@@ -60,3 +60,9 @@ The `?debug` query enables `window.__office` for local inspection. Normal play d
 ### Pipe combat update
 
 Press Attack near a floor pipe to pick it up. Pipes have eight swings, longer reach and a dedicated six-frame animation. Taking an unblocked hit drops your pipe; defeated guards drop replacements. Two additional simulation tests cover pickup, reach, hit deduplication, durability, disarming and guard drops (17 passing in total). Browser checks from the previous release have not been rerun for this update.
+
+## 3D test floor
+
+Open `prototype3d/` for a separate fully polygonal office prototype. WASD/arrows or touch stick move; Space/Attack strikes; E/Use picks up the pipe. Defeat the single guard and enter the green rear exit. Desks break, pipes wear out and drop when hit. P or focus loss pauses. Restart resets the room.
+
+This uses original articulated box-mesh characters with procedural joint animations, not finished character models or motion capture. Four simulation tests pass (`npm run test:3d`); browser rendering and physical iPhone performance remain unverified because the test-browser download failed. Three.js is bundled locally, with its MIT license included. Build with `npm install` and `npm run build:3d`.
