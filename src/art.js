@@ -454,6 +454,15 @@ POSES.block = [
     backArm: [-1, 31, 8, 19],
   }),
 ];
+POSES.pipe = [
+  pose({body:[-3,1], frontArm:[9,29,-8,20], backArm:[-12,30,-15,22], pipe:[-8,20,-25,-2]}),
+  pose({body:[-5,3], head:[-3,1], frontArm:[4,25,-12,13], backArm:[-14,28,-19,16], pipe:[-12,13,-27,-3]}),
+  pose({body:[3,2], frontArm:[24,29,35,24], backArm:[4,32,22,27], pipe:[35,24,54,11]}),
+  pose({body:[6,4], head:[4,2], frontArm:[29,38,39,43], backArm:[8,37,26,41], pipe:[39,43,55,52]}),
+  pose({body:[4,5], frontArm:[24,43,28,51], backArm:[3,38,19,47], pipe:[28,51,48,65]}),
+  pose({body:[1,2], frontArm:[18,40,20,46], pipe:[20,46,36,21]}),
+];
+POSES.pickup = [pose({body:[0,5],head:[3,7],frontArm:[19,48,23,63]}),pose({body:[3,11],head:[7,13],frontArm:[21,56,23,74],frontLeg:[14,65,12,77]}),pose({body:[1,5],head:[2,4],frontArm:[18,45,20,58]})];
 function drawActor(c, p, colors, type) {
   const C = colors,
     ox = 39,
@@ -479,6 +488,12 @@ function drawActor(c, p, colors, type) {
     );
   const S = (a, b, w, col) =>
     seg(c, [a[0] + ox, a[1] + oy], [b[0] + ox, b[1] + oy], w, col);
+  if (p.pipe) {
+    const [x,y,ex,ey] = p.pipe;
+    S([x,y],[ex,ey],7,outline);
+    S([x,y],[ex,ey],5,"#6b8999");
+    S([x-1,y-1],[ex-1,ey-1],2,"#e1ebdf");
+  }
   const [bx, by] = p.body;
   const hip = [bx, 53 + by * 0.2];
   const leg = (arr, back) => {
@@ -670,6 +685,8 @@ export function frameIndex(a) {
     return a.vz > 150 ? 0 : a.vz > 0 ? 1 : a.vz > -170 ? 2 : 3;
   if (a.state === "idle") return Math.floor(a.time * 5) % count;
   const durations = {
+    pipe: 0.48,
+    pickup: 0.24,
     airkick: 0.4,
     punch1: 0.32,
     punch2: 0.34,

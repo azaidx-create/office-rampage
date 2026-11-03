@@ -56,3 +56,7 @@ Validation: 15 simulation/projection/animation tests, including an input-driven 
 - `tools/animation-lab.html`: pause and inspect individual frames.
 
 The `?debug` query enables `window.__office` for local inspection. Normal play does not expose it.
+
+### Pipe combat update
+
+Press Attack near a floor pipe to pick it up. Pipes have eight swings, longer reach and a dedicated six-frame animation. Taking an unblocked hit drops your pipe; defeated guards drop replacements. Two additional simulation tests cover pickup, reach, hit deduplication, durability, disarming and guard drops (17 passing in total). Browser checks from the previous release have not been rerun for this update.

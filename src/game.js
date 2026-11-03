@@ -310,6 +310,11 @@ function drawActor(a) {
     Math.round(96 * wide),
     Math.round(92 * scale),
   );
+  if (a.weapon && a.state !== "pipe" && a.state !== "pickup") {
+    rect(ctx, 9, -42, 5, 39, "#172533");
+    rect(ctx, 10, -41, 3, 37, "#7996a4");
+    rect(ctx, 10, -41, 1, 36, "#e1ebdf");
+  }
   ctx.restore();
   if (!a.dead && a.type !== "hero") {
     if (a.hp < a.maxHp) {
@@ -422,6 +427,15 @@ function render() {
       drawFurniture(ctx, office, item.d, camera, obscures ? 0.38 : 1);
     }
   }
+  for (const w of game.weapons) if (!w.taken) {
+    const q = project(w.x,w.y,camera);
+    rect(ctx,q.x-18,q.y-3,39,6,"#172533");
+    rect(ctx,q.x-17,q.y-3,37,3,"#829caa");
+    rect(ctx,q.x-17,q.y-3,37,1,"#e1ebdf");
+    if (!game.player.weapon && Math.abs(w.x-game.player.x)<27 && Math.abs(w.y-game.player.y)<23)
+      text(ctx,"ATTACK · PICK UP",q.x,q.y-15,6,"#f8d18c","center");
+  }
+  if (game.player.weapon) text(ctx,"PIPE · " + game.player.weapon.uses + " SWINGS",180,36,7,"#dce6d8");
   for (const item of game.pickups)
     if (!item.taken) {
       const q = project(item.x, item.y, camera),

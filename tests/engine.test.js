@@ -253,3 +253,34 @@ test("solid copier blocks grounded movement until broken", () => {
   tick(g, 10, { x: 1, y: 0 });
   assert.ok(g.player.x > 272);
 });
+
+test("pipe pickup, reach, single hit, durability and disarming", () => {
+  const {g,e} = encounter();
+  g.weapons = [{x:300,y:260,uses:2}];
+  g.queue("attack"); tick(g,1);
+  assert.equal(g.player.state,"pickup");
+  assert.equal(g.player.weapon.uses,2);
+  assert.equal(g.weapons[0].taken,true);
+  tick(g,16); e.x=380;
+  g.queue("attack"); tick(g,18);
+  assert.equal(e.hp,14);
+  assert.equal(g.player.state,"pipe");
+  tick(g,13);
+  assert.equal(g.player.weapon.uses,1);
+  g.queue("attack"); tick(g,31);
+  assert.equal(g.player.weapon,null);
+  g.player.weapon={uses:4};
+  g.damage(g.player,e,MOVES.strike);
+  assert.equal(g.player.weapon,null);
+  assert.equal(g.weapons.at(-1).uses,4);
+});
+
+test("defeated guards drop one collectible pipe", () => {
+  const {g}=encounter();
+  const guard=g.enemies[1];
+  g.damage(guard,g.player,{damage:999,push:0});
+  const count=g.weapons.length;
+  assert.equal(g.weapons.at(-1).uses,8);
+  g.damage(guard,g.player,{damage:999,push:0});
+  assert.equal(g.weapons.length,count);
+});

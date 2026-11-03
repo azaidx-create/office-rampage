@@ -1,6 +1,7 @@
 // Pure 60 Hz simulation. Rendering and input never decide whether a hit lands.
 export const WORLD = { width: 1960, top: 224, bottom: 390 };
 export const MOVES = {
+  pipe: { duration: 0.48, active: 0.16, end: 0.27, reach: 91, damage: 34, push: 115 },
   airkick: {
     duration: 0.4,
     active: 0.07,
@@ -110,6 +111,7 @@ export class Game {
     this.message = "";
     this.messageUntil = 0;
     this.pickups = [];
+    this.weapons = [{x: 140, y: 274, uses: 8}];
     this.damageValue = 0;
     this.props = [
       { id: "p1", x: 300, y: 269, type: "copier", hp: 50 },
@@ -186,6 +188,11 @@ export class Game {
       this.emit("swing", { move });
     }
   }
+  dropWeapon(a) {
+    if (!a.weapon) return;
+    this.weapons.push({x: a.x, y: a.y, uses: a.weapon.uses});
+    a.weapon = null;
+  }
   damage(target, source, move) {
     if (target.dead || target.inv > 0) return false;
     if (
@@ -212,6 +219,7 @@ export class Game {
       }
       return true;
     }
+    this.dropWeapon(target);
     target.hp = Math.max(0, target.hp - move.damage);
     target.inv = target.type === "hero" ? 0.65 : 0.08;
     target.x = clamp(
@@ -246,6 +254,7 @@ export class Game {
         this.status = "lost";
         this.emit("end", { win: false });
       } else {
+        if (target.type === "guard") this.weapons.push({x: target.x, y: target.y, uses: 8});
         this.kills++;
         this.score += target.type === "boss" ? 1500 : 250;
         this.emit("down", { x: target.x, y: target.y });
@@ -318,6 +327,7 @@ export class Game {
       }
     }
     if (a.dead) return;
+    if (a.state === "pickup" && a.time >= 0.24) {a.state = "idle"; a.time = 0;}
     if (a.state === "hurt" && a.time >= 0.24) {
       a.state = "idle";
       a.time = 0;
@@ -326,6 +336,7 @@ export class Game {
     if (m) {
       this.resolveAttack(a);
       if (a.time >= m.duration) {
+        if (a.state === "pipe" && a.weapon && --a.weapon.uses <= 0) {a.weapon = null; this.announce("PIPE BROKEN", 1);}
         a.state = a.z > 0 ? "jump" : "idle";
         a.time = 0;
         if (a.type !== "hero") a.cooldown = a.type === "boss" ? 0.75 : 1.1;
@@ -393,8 +404,18 @@ export class Game {
       const action = this.buffer.action;
       this.buffer = null;
       if (action === "attack" || action === "punch") {
-        p.combo = this.time < p.comboUntil ? (p.combo % 3) + 1 : 1;
-        this.begin(p, "punch" + p.combo);
+        const nearby = this.weapons.find(w => !w.taken && Math.abs(w.x-p.x)<27 && Math.abs(w.y-p.y)<23);
+        if (!p.weapon && nearby) {
+          nearby.taken = true;
+          p.weapon = {uses: nearby.uses};
+          p.state = "pickup"; p.time = 0;
+          this.announce("STEEL PIPE · ATTACK TO SWING", 1.8);
+        } else if (p.weapon) {
+          this.begin(p, "pipe");
+        } else {
+          p.combo = this.time < p.comboUntil ? (p.combo % 3) + 1 : 1;
+          this.begin(p, "punch" + p.combo);
+        }
       } else if (action === "kick") this.begin(p, "kick");
     }
     if (["idle", "walk", "jump", "airkick"].includes(p.state)) {
