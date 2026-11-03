@@ -49,10 +49,10 @@ function fighter(asset,isEnemy){
  return {root,model,mixer,actions,pipe,current:null,lastTime:0};
 }
 function animate(f,a,dt){if(!f)return;f.root.position.set(a.x,0,a.z);f.root.rotation.y=a.angle;f.pipe.visible=!!a.weapon||(a.action==='attack'&&a.attackWeapon);
- const name=a.action==='attack'?(a.attackWeapon?'Sword_Slash':'Punch_Right'):a.action==='hurt'?'HitRecieve':a.action==='down'?'Death':a.action==='walk'?'Run':a.weapon?'Idle_Sword':'Idle';
+ const name=a.action==='attack'?(a.attackWeapon?'Sword_Slash':'Punch_Right'):a.action==='hurt'?'HitRecieve':a.action==='down'?'Death':a.action==='dodge'?(f.actions['Roll']?'Roll':f.actions['Dodge']?'Dodge':'Run'):a.action==='walk'?'Run':a.weapon?'Idle_Sword':'Idle';
  const action=f.actions[name],restart=a.t<f.lastTime&&a.action==='attack';f.lastTime=a.t;
- if(f.current!==name||restart){if(f.current)f.actions[f.current].fadeOut(.07);action.reset();const once=['attack','hurt','down'].includes(a.action);action.setLoop(once?T.LoopOnce:T.LoopRepeat,once?1:Infinity);action.clampWhenFinished=once;action.fadeIn(.07).play();f.current=name}
- action.timeScale=name==='Punch_Right'?action.getClip().duration/.44:name==='Sword_Slash'?action.getClip().duration/.82:name==='HitRecieve'?action.getClip().duration/.32:1;
+ if(f.current!==name||restart){if(f.current)f.actions[f.current].fadeOut(.07);action.reset();const once=['attack','hurt','down','dodge'].includes(a.action)&&name!=='Run';action.setLoop(once?T.LoopOnce:T.LoopRepeat,once?1:Infinity);action.clampWhenFinished=once;action.fadeIn(.07).play();f.current=name}
+ action.timeScale=name==='Punch_Right'?action.getClip().duration/.44:name==='Sword_Slash'?action.getClip().duration/.82:name==='HitRecieve'?action.getClip().duration/.32:name==='Roll'||name==='Dodge'?action.getClip().duration/.48:1;
  f.mixer.update(dt);
 }
 $('start').disabled=true;$('start').textContent='LOADING FIGHTER…';
@@ -84,8 +84,9 @@ return f});modelReady=true;$('start').disabled=false;$('start').textContent='ENT
 let running=false,keys=new Set(),stick={x:0,z:0},pointer=null;function clear(){keys.clear();stick={x:0,z:0};pointer=null;$('nub').style.transform=''}
 function pause(){if(!running)return;running=false;clear();$('panel').style.display='grid';$('start').textContent='RESUME →'}
 $('start').onclick=()=>{if(!modelReady)return;if(game.status!=='playing'){game.reset();desks.forEach(g=>{g.rotation.set(0,0,0);g.position.y=0})}running=true;$('panel').style.display='none'};
+const dodgeButton=document.createElement('button');dodgeButton.id='dodge';dodgeButton.textContent='DODGE';dodgeButton.style.cssText='width:72px;height:72px;background:#366a75cc';$('attack').parentElement.prepend(dodgeButton);const dodge=()=>{if(running)game.dodge({x:stick.x,z:stick.z})};dodgeButton.onpointerdown=e=>{e.preventDefault();dodge()};
 $('attack').onpointerdown=e=>{e.preventDefault();if(running)game.attack(game.player)};$('use').onpointerdown=e=>{e.preventDefault();if(running)game.pickup()};
-addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat)return;if(e.code==='KeyP')pause();if(running&&e.code==='Space')game.attack(game.player);if(running&&e.code==='KeyE')game.pickup()});addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
+addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat)return;if(e.code==='KeyP')pause();if(running&&e.code==='Space')game.attack(game.player);if(running&&e.code==='KeyE')game.pickup();if(running&&(e.code==='ShiftLeft'||e.code==='ShiftRight'))dodge()});addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
 function drag(e){const r=$('stick').getBoundingClientRect(),x=e.clientX-r.left-r.width/2,z=e.clientY-r.top-r.height/2,n=Math.max(38,Math.hypot(x,z));stick={x:x/n,z:z/n};$('nub').style.transform=`translate(${stick.x*32}px,${stick.z*32}px)`}
 $('stick').onpointerdown=e=>{if(pointer!==null)return;pointer=e.pointerId;e.currentTarget.setPointerCapture(pointer);drag(e)};$('stick').onpointermove=e=>{if(e.pointerId===pointer)drag(e)};for(const type of ['pointerup','pointercancel','lostpointercapture'])$('stick').addEventListener(type,e=>{if(e.pointerId===pointer){pointer=null;stick={x:0,z:0};$('nub').style.transform=''}});
 function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.position.set(game.player.x,camera.aspect<.8?13:8,camera.aspect<.8?23:17);camera.lookAt(game.player.x,1,0);camera.updateProjectionMatrix()}addEventListener('resize',resize);resize();let last=performance.now(),time=0;
