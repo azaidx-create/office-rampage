@@ -13,7 +13,7 @@ box(scene,7,-.12,0,37,.24,9,'#344852');box(scene,7,1.7,-4.5,37,3.4,.2,'#8a9d9e')
 for(let x=-11;x<=25;x+=1)box(scene,x,.005,0,.015,.01,9,'#405661');for(let z=-4;z<=4;z++)box(scene,7,.006,z,37,.01,.015,'#405661');
 box(scene,23,1.35,-4.35,2.3,2.7,.15,'#223c45');const door=box(scene,23,2.95,-4.15,1.8,.18,.1,'#6ba694');
 for(const x of [-6,12]){box(scene,x,2.25,-4.32,2.4,1.2,.08,'#254358');for(let j=-1;j<=1;j++)box(scene,x+j*.7,2.25,-4.25,.045,1.2,.05,'#adc3be')}
-function label(str,x,y,z){const c=document.createElement('canvas');c.width=512;c.height=128;const q=c.getContext('2d');q.fillStyle='#182f3b';q.fillRect(0,0,512,128);q.fillStyle='#dce9d4';q.font='bold 48px monospace';q.textAlign='center';q.fillText(str,256,83);const m=new T.Mesh(new T.PlaneGeometry(2,.5),new T.MeshBasicMaterial({map:new T.CanvasTexture(c)}));m.position.set(x,y,z);scene.add(m)}label('EXIT',23,3,-4.22);label('OPERATIONS',-6,3,-4.2);
+function label(str,x,y,z){const c=document.createElement('canvas');c.width=512;c.height=128;const q=c.getContext('2d');q.fillStyle='#182f3b';q.fillRect(0,0,512,128);q.fillStyle='#dce9d4';q.font='bold 48px monospace';q.textAlign='center';q.fillText(str,256,83);const m=new T.Mesh(new T.PlaneGeometry(2,.5),new T.MeshBasicMaterial({map:new T.CanvasTexture(c)}));m.position.set(x,y,z);scene.add(m);return m}label('EXIT',23,3,-4.22);label('OPERATIONS',-6,3,-4.2);
 for(const x of [-8,19]){box(scene,x,.35,-4,.5,.7,.5,'#a57958');const foliage=new T.Mesh(new T.IcosahedronGeometry(.65,0),mat('#4f8669'));foliage.position.set(x,1.1 ,-3.5);scene.add(foliage)}
 
 // Layered industrial scenery: wall panels, loading shutters, pipes, lamps and crates.
@@ -59,7 +59,27 @@ $('start').disabled=true;$('start').textContent='LOADING FIGHTER…';
 (async()=>{try{
  const load=async(name)=>{const response=await fetch(`assets/${name}.glb.gz`);if(!response.ok)throw Error('Model download failed');const bytes=await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();return new GLTFLoader().parseAsync(bytes,'')};
  const [playerAsset,guardAsset]=await Promise.all([load('punk'),load('swat')]);
- hero=fighter(playerAsset,false);enemies=game.enemies.map(e=>{const f=fighter(guardAsset,true);if(e.kind==='boss'){f.model.scale.multiplyScalar(1.38);f.model.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color.multiplyScalar(.72)}})}return f});modelReady=true;$('start').disabled=false;$('start').textContent='ENTER THE OFFICE →';
+ hero=fighter(playerAsset,false);enemies=game.enemies.map(e=>{const boss=e.kind==='boss';const f=fighter(boss?playerAsset:guardAsset,true);
+if(boss){
+ f.model.scale.set(1.72,1.58,1.65);
+ f.model.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color.set('#71382f')}});
+ // Distinct armored gang leader silhouette: broad shoulders, chest plate and spiked pauldrons.
+ const armor=new T.Group();f.root.add(armor);
+ box(armor,0,1.52,.02,1.05,.65,.55,'#342c2e');
+ box(armor,0,1.56,.32,.82,.44,.13,'#9c4933');
+ for(const side of [-1,1]){
+  box(armor,side*.76,1.82,0,.52,.32,.65,'#37383e');
+  const spike=new T.Mesh(new T.ConeGeometry(.16,.55,6),mat('#b5a78e'));
+  spike.position.set(side*.78,2.24,0);spike.rotation.z=side*-.32;armor.add(spike);
+  box(armor,side*.45,.94,.24,.2,.28,.16,'#b8a47a');
+ }
+ box(armor,0,2.4,.14,.65,.19,.55,'#24252b');
+ box(armor,0,2.25,.45,.6,.16,.09,'#c4a878');
+ const mark=label('BOSS',0,3.6,0);mark.position.x=0;
+ // label() adds to scene; parent it to the boss so it travels with him.
+ f.root.add(mark);mark.position.set(0,3.5,0);
+}
+return f});modelReady=true;$('start').disabled=false;$('start').textContent='ENTER THE OFFICE →';
  }catch(err){$('panel').querySelector('p').textContent='Character loading failed. Refresh in a current Safari or Chrome browser. '+err.message;$('start').textContent='MODEL UNAVAILABLE';console.error(err)}})();
 let running=false,keys=new Set(),stick={x:0,z:0},pointer=null;function clear(){keys.clear();stick={x:0,z:0};pointer=null;$('nub').style.transform=''}
 function pause(){if(!running)return;running=false;clear();$('panel').style.display='grid';$('start').textContent='RESUME →'}
