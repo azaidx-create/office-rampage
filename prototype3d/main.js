@@ -36,50 +36,53 @@ for(const x of [-9,6,17]){
 const stageTint=box(scene,7,3.35,-4.5,37,.1,.15,'#9d9f85');
 
 const game=new Arena(),desks=[];for(const o of game.props){const g=new T.Group();g.position.set(o.x,0,o.z);scene.add(g);box(g,0,.9,0,1.9,.12,1.1,'#c0a87d');for(const x of [-.8,.8])box(g,x,.42,0,.09,.84,.8,'#56656b');box(g,0,1.27,-.25,.65,.55,.3,'#c2c9bc');box(g,0,1.29,-.08,.52,.39,.02,'#173c40');box(g,0,1,.27,.65,.04,.23,'#d0d5c4');desks.push(g)}
-let hero,enemies=[],modelReady=false;const PIPE_LENGTH=1.85;
+let hero,enemies=[],modelReady=false;const PIPE_LENGTH=1.85,HELD_PIPE_LENGTH=1.27;
 const floorPipe=box(scene,-5,.13,2,PIPE_LENGTH,.09,.09,'#c2d4d6');
 function fighter(asset,isEnemy){
  const root=new T.Group(),model=clone(asset.scene);root.add(model);scene.add(root);model.scale.set(1.32,1.18,1.24);
  model.traverse(o=>{if(o.name==='Pistol')o.visible=false;if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
  const hand=model.getObjectByName('WristR')||model.getObjectByName('Wrist.R');
  if(!hand)throw Error('Character has no right-hand grip');
- const pipe=new T.Mesh(new T.CylinderGeometry(.035,.035,PIPE_LENGTH,10),mat('#bacbd1'));
- pipe.rotation.z=Math.PI/2;pipe.position.set(-.72,.04,0);pipe.castShadow=true;hand.add(pipe);pipe.visible=false;
+ const pipe=new T.Mesh(new T.CylinderGeometry(.035,.035,HELD_PIPE_LENGTH,10),mat('#bacbd1'));
+ pipe.rotation.z=Math.PI/2;pipe.position.set(-.50,.04,0);pipe.castShadow=true;hand.add(pipe);pipe.visible=false;
  const mixer=new T.AnimationMixer(model),actions={};for(const clip of asset.animations)actions[clip.name]=mixer.clipAction(clip);
- return {root,model,mixer,actions,pipe,current:null,lastTime:0};
+ return {root,model,mixer,actions,pipe,current:null,lastTime:0,baseScale:model.scale.clone()};
 }
 function animate(f,a,dt){if(!f)return;f.root.position.set(a.x,0,a.z);f.root.rotation.y=a.angle;f.pipe.visible=!!a.weapon||(a.action==='attack'&&a.attackWeapon);
- const name=a.action==='attack'?(a.attackWeapon?'Sword_Slash':'Punch_Right'):a.action==='hurt'?'HitRecieve':a.action==='down'?'Death':a.action==='dodge'?(f.actions['Roll']?'Roll':f.actions['Dodge']?'Dodge':'Run'):a.action==='walk'?'Run':a.weapon?'Idle_Sword':'Idle';
+ // Mirror the sword slash on alternate pipe attacks; restore normal handedness afterward.
+ f.model.scale.x=Math.abs(f.baseScale.x)*(a.action==='attack'&&a.attackWeapon&&a.swingSide===1?-1:1);
+ const name=a.action==='attack'?(a.attackWeapon?'Sword_Slash':'Punch_Right'):(a.action==='hurt'||a.action==='stunned')?'HitRecieve':a.action==='down'?'Death':a.action==='dodge'?(f.actions['Roll']?'Roll':f.actions['Dodge']?'Dodge':'Run'):a.action==='walk'?'Run':a.weapon?'Idle_Sword':'Idle';
  const action=f.actions[name],restart=a.t<f.lastTime&&a.action==='attack';f.lastTime=a.t;
- if(f.current!==name||restart){if(f.current)f.actions[f.current].fadeOut(.07);action.reset();const once=['attack','hurt','down','dodge'].includes(a.action)&&name!=='Run';action.setLoop(once?T.LoopOnce:T.LoopRepeat,once?1:Infinity);action.clampWhenFinished=once;action.fadeIn(.07).play();f.current=name}
- action.timeScale=name==='Punch_Right'?action.getClip().duration/.44:name==='Sword_Slash'?action.getClip().duration/.82:name==='HitRecieve'?action.getClip().duration/.32:name==='Roll'||name==='Dodge'?action.getClip().duration/.48:1;
+ if(f.current!==name||restart){if(f.current)f.actions[f.current].fadeOut(.07);action.reset();const once=['attack','hurt','stunned','down','dodge'].includes(a.action)&&name!=='Run';action.setLoop(once?T.LoopOnce:T.LoopRepeat,once?1:Infinity);action.clampWhenFinished=once;action.fadeIn(.07).play();f.current=name}
+ action.timeScale=name==='Punch_Right'?action.getClip().duration/.44:name==='Sword_Slash'?action.getClip().duration/.82:name==='HitRecieve'?action.getClip().duration/(a.action==='stunned'?.95:.32):name==='Roll'||name==='Dodge'?action.getClip().duration/.48:1;
  f.mixer.update(dt);
 }
 $('start').disabled=true;$('start').textContent='LOADING FIGHTER…';
 (async()=>{try{
  const load=async(name)=>{const response=await fetch(`assets/${name}.glb.gz`);if(!response.ok)throw Error('Model download failed');const bytes=await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();return new GLTFLoader().parseAsync(bytes,'')};
  const [playerAsset,guardAsset]=await Promise.all([load('punk'),load('swat')]);
- hero=fighter(playerAsset,false);enemies=game.enemies.map(e=>{const boss=e.kind==='boss';const f=fighter(boss?playerAsset:guardAsset,true);
-if(boss){
- f.model.scale.set(1.72,1.58,1.65);
- f.model.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color.set('#71382f')}});
- // Distinct armored gang leader silhouette: broad shoulders, chest plate and spiked pauldrons.
- const armor=new T.Group();f.root.add(armor);
- box(armor,0,1.52,.02,1.05,.65,.55,'#342c2e');
- box(armor,0,1.56,.32,.82,.44,.13,'#9c4933');
- for(const side of [-1,1]){
-  box(armor,side*.76,1.82,0,.52,.32,.65,'#37383e');
-  const spike=new T.Mesh(new T.ConeGeometry(.16,.55,6),mat('#b5a78e'));
-  spike.position.set(side*.78,2.24,0);spike.rotation.z=side*-.32;armor.add(spike);
-  box(armor,side*.45,.94,.24,.2,.28,.16,'#b8a47a');
+ hero=fighter(playerAsset,false);
+enemies=game.enemies.map((e,i)=>{
+ const boss=e.kind==='boss',thug=i===1||i===3;
+ const f=fighter(boss||thug?playerAsset:guardAsset,true);
+ if(boss){
+  // Street gang leader: rugged civilian clothes, not geometric fantasy armor.
+  f.model.scale.set(1.58,1.43,1.52);f.baseScale.copy(f.model.scale);
+  f.model.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color.multiply(new T.Color('#ad806d'))}});
+  const jacket=box(f.root,0,1.48,.05,.85,.58,.44,'#342f31');
+  jacket.material.roughness=1;
+  box(f.root,0,1.49,.29,.42,.39,.035,'#6b3430');
+  box(f.root,0,2.4,-.03,.57,.13,.45,'#29282a');
+  const mark=label('BOSS',0,3.2,0);f.root.add(mark);mark.position.set(0,3.35,0);
+ }else if(thug){
+  f.model.scale.set(1.3,1.17,1.24);f.baseScale.copy(f.model.scale);
+  f.model.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color.multiply(new T.Color(i===1?'#aa9278':'#797c83'))}});
+ }else{
+  // Muted, worn-looking security gear instead of identical pristine uniforms.
+  f.model.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color.multiply(new T.Color(i===0?'#a19c89':'#797b73'))}});
  }
- box(armor,0,2.4,.14,.65,.19,.55,'#24252b');
- box(armor,0,2.25,.45,.6,.16,.09,'#c4a878');
- const mark=label('BOSS',0,3.6,0);mark.position.x=0;
- // label() adds to scene; parent it to the boss so it travels with him.
- f.root.add(mark);mark.position.set(0,3.5,0);
-}
-return f});modelReady=true;$('start').disabled=false;$('start').textContent='ENTER THE OFFICE →';
+ return f;
+});modelReady=true;$('start').disabled=false;$('start').textContent='ENTER THE OFFICE →';
  }catch(err){$('panel').querySelector('p').textContent='Character loading failed. Refresh in a current Safari or Chrome browser. '+err.message;$('start').textContent='MODEL UNAVAILABLE';console.error(err)}})();
 let running=false,keys=new Set(),stick={x:0,z:0},pointer=null;function clear(){keys.clear();stick={x:0,z:0};pointer=null;$('nub').style.transform=''}
 function pause(){if(!running)return;running=false;clear();$('panel').style.display='grid';$('start').textContent='RESUME →'}
