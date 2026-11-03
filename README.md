@@ -66,3 +66,7 @@ Press Attack near a floor pipe to pick it up. Pipes have eight swings, longer re
 Open `prototype3d/` for a separate fully polygonal office prototype. WASD/arrows or touch stick move; Space/Attack strikes; E/Use picks up the pipe. Defeat the single guard and enter the green rear exit. Desks break, pipes wear out and drop when hit. P or focus loss pauses. Restart resets the room.
 
 This uses original articulated box-mesh characters with procedural joint animations, not finished character models or motion capture. Four simulation tests pass (`npm run test:3d`); browser rendering and physical iPhone performance remain unverified because the test-browser download failed. Three.js is bundled locally, with its MIT license included. Build with `npm install` and `npm run build:3d`.
+
+### Character update
+
+The 3D prototype now loads Quaternius Casual_2 from Ultimate Modular Men (CC0), replacing box-mesh fighters with skinned character meshes and six authored animation clips. See `prototype3d/assets/CREDITS.md`. The model uses colored materials rather than image textures. A software-rendered model preview is included at `prototype3d/assets/preview.png`; this verifies asset appearance, not live WebGL rendering. Loading is gated and reports errors. Current browsers supporting DecompressionStream are required for the compressed model. The four simulation tests pass; physical iPhone and live browser visual checks remain pending.
