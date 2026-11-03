@@ -20,20 +20,27 @@ let hero,enemy,modelReady=false;
 const floorPipe=box(scene,2,.13,2,1.4,.09,.09,'#c2d4d6');
 function fighter(asset,isEnemy){
  const root=new T.Group(),model=clone(asset.scene);root.add(model);scene.add(root);model.scale.set(1.32,1.18,1.24);
- model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(isEnemy){o.material=o.material.clone();o.material.color.multiply(new T.Color('#9aa8c4'))}}});
- const pipe=box(model.getObjectByName('WristR')||model.getObjectByName('Wrist.R')||model,0,0,.72,.075,.075,1.85,'#bacbd1');pipe.visible=false;
+ model.traverse(o=>{if(o.name==='Pistol')o.visible=false;if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+ const hand=model.getObjectByName('WristR')||model.getObjectByName('Wrist.R');
+ if(!hand)throw Error('Character has no right-hand grip');
+ const pipe=new T.Mesh(new T.CylinderGeometry(.035,.035,1.85,10),mat('#bacbd1'));
+ pipe.rotation.z=Math.PI/2;pipe.position.set(-.72,.04,0);pipe.castShadow=true;hand.add(pipe);pipe.visible=false;
  const mixer=new T.AnimationMixer(model),actions={};for(const clip of asset.animations)actions[clip.name]=mixer.clipAction(clip);
  return {root,model,mixer,actions,pipe,current:null,lastTime:0};
 }
 function animate(f,a,dt){if(!f)return;f.root.position.set(a.x,0,a.z);f.root.rotation.y=a.angle;f.pipe.visible=!!a.weapon||(a.action==='attack'&&a.attackWeapon);
- const name=a.action==='attack'?(a.attackWeapon?'Sword_Slash':'Punch_Right'):a.action==='hurt'?'HitRecieve':a.action==='down'?'Death':a.action==='walk'?'Run':'Idle';
+ const name=a.action==='attack'?(a.attackWeapon?'Sword_Slash':'Punch_Right'):a.action==='hurt'?'HitRecieve':a.action==='down'?'Death':a.action==='walk'?'Run':a.weapon?'Idle_Sword':'Idle';
  const action=f.actions[name],restart=a.t<f.lastTime&&a.action==='attack';f.lastTime=a.t;
  if(f.current!==name||restart){if(f.current)f.actions[f.current].fadeOut(.07);action.reset();const once=['attack','hurt','down'].includes(a.action);action.setLoop(once?T.LoopOnce:T.LoopRepeat,once?1:Infinity);action.clampWhenFinished=once;action.fadeIn(.07).play();f.current=name}
  action.timeScale=name==='Punch_Right'?action.getClip().duration/.44:name==='Sword_Slash'?action.getClip().duration/.82:name==='HitRecieve'?action.getClip().duration/.32:1;
  f.mixer.update(dt);
 }
 $('start').disabled=true;$('start').textContent='LOADING FIGHTER…';
-(async()=>{try{const response=await fetch('assets/worker.glb.gz');if(!response.ok)throw Error('Model download failed');const bytes=await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();const asset=await new GLTFLoader().parseAsync(bytes,'');hero=fighter(asset,false);enemy=fighter(asset,true);modelReady=true;$('start').disabled=false;$('start').textContent='ENTER THE OFFICE →'}catch(err){$('panel').querySelector('p').textContent='Character loading failed. Refresh in a current Safari or Chrome browser. '+err.message;$('start').textContent='MODEL UNAVAILABLE';console.error(err)}})();
+(async()=>{try{
+ const load=async(name)=>{const response=await fetch(`assets/${name}.glb.gz`);if(!response.ok)throw Error('Model download failed');const bytes=await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();return new GLTFLoader().parseAsync(bytes,'')};
+ const [playerAsset,guardAsset]=await Promise.all([load('punk'),load('swat')]);
+ hero=fighter(playerAsset,false);enemy=fighter(guardAsset,true);modelReady=true;$('start').disabled=false;$('start').textContent='ENTER THE OFFICE →';
+ }catch(err){$('panel').querySelector('p').textContent='Character loading failed. Refresh in a current Safari or Chrome browser. '+err.message;$('start').textContent='MODEL UNAVAILABLE';console.error(err)}})();
 let running=false,keys=new Set(),stick={x:0,z:0},pointer=null;function clear(){keys.clear();stick={x:0,z:0};pointer=null;$('nub').style.transform=''}
 function pause(){if(!running)return;running=false;clear();$('panel').style.display='grid';$('start').textContent='RESUME →'}
 $('start').onclick=()=>{if(!modelReady)return;if(game.status!=='playing'){game.reset();desks.forEach(g=>{g.rotation.set(0,0,0);g.position.y=0})}running=true;$('panel').style.display='none'};
