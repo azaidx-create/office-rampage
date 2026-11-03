@@ -5,7 +5,7 @@ export class Arena {
  }
  startStage(stage,fresh=false){
   const hp=fresh?100:Math.min(100,(this.player?.hp||70)+35);
-  this.stage=stage;this.player={x:-8,z:2,hp,angle:Math.PI/2,t:0,action:'idle',cool:0,weapon:0,dodgeCool:0,invulnerable:0};
+  this.stage=stage;this.player={x:-8,z:2,hp,angle:Math.PI/2,t:0,action:'idle',cool:0,weapon:0,swingSide:0,dodgeCool:0,invulnerable:0};
   this.pipe={x:-5,z:2,taken:false,uses:14};
   this.props=[{x:-2,z:-3,hp:60},{x:8,z:-3,hp:60},{x:16,z:-3,hp:60}];
   this.enemies=[
@@ -25,6 +25,7 @@ export class Arena {
   const targets=a===this.player?this.activeEnemies:[this.player];
   const target=targets.filter(e=>e.hp>0).sort((u,v)=>Math.hypot(u.x-a.x,u.z-a.z)-Math.hypot(v.x-a.x,v.z-a.z))[0];
   if(target&&Math.hypot(target.x-a.x,target.z-a.z)<(a.weapon?3.25:2))a.angle=Math.atan2(target.x-a.x,target.z-a.z);
+  if(a===this.player&&a.weapon)a.swingSide=1-(a.swingSide||0);
   a.action='attack';a.t=0;a.cool=a===this.player?(a.weapon?.82:.44):(a.kind==='boss'?1.25:1.5);a.hit=false;a.attackDuration=a.weapon?.82:.44;a.attackWeapon=!!a.weapon;
   if(a===this.player)this.pendingAttack=0;
  }
@@ -39,11 +40,13 @@ export class Arena {
  damage(target,source){
   if(target.hp<=0||target.invulnerable>0)return;
   const amount=source===this.player?(source.weapon?30:17):(source.kind==='boss'?22:10);
-  target.hp=Math.max(0,target.hp-amount);target.action=target.hp?'hurt':'down';target.t=0;target.cool=.65;
+  target.hp=Math.max(0,target.hp-amount);const heavy=source===this.player&&source.weapon>0&&target.kind==='boss'&&target.hp>0;
+  target.action=target.hp?(heavy?'stunned':'hurt'):'down';target.t=0;target.cool=heavy?1.15:.65;target.stunDuration=heavy?.95:0;
   this.move(target,Math.sin(source.angle)*2.2,Math.cos(source.angle)*2.2,.12);this.flash=.09;this.hits++;
   if(target===this.player&&target.weapon){this.pipe={x:target.x+.5,z:target.z,taken:false,uses:target.weapon};target.weapon=0;this.message='Pipe dropped · USE to recover'}
   if(target===this.player&&!target.hp)this.message='SHIFT TERMINATED';
   else if(target.kind==='boss'&&!target.hp)this.message='BOSS DEFEATED · Advance to the exit!';
+  else if(heavy)this.message='BOSS STUNNED · HEAVY PIPE HIT';
   else if(target!==this.player)this.message='HIT · '+amount+' DAMAGE';
  }
  step(dt,input={}){
@@ -53,6 +56,7 @@ export class Arena {
   for(const a of [p,...this.enemies]){
    a.t+=dt;a.cool=Math.max(0,a.cool-dt);
    if(a.action==='hurt'&&a.t>.32)a.action='idle';
+   if(a.action==='stunned'&&a.t>(a.stunDuration||.95))a.action='idle';
    if(a.action==='attack'){
     if(!a.hit&&a.t>(a===p?(a.attackWeapon?.34:.16):.2)){
      a.hit=true;const targets=a===p?this.activeEnemies:[p],reach=a.attackWeapon?2.9:a.kind==='boss'?2.1:1.5;
