@@ -68,7 +68,7 @@ enemies=game.enemies.map((e,i)=>{
  if(boss){
   // Street gang leader: rugged civilian clothes, not geometric fantasy armor.
   f.model.scale.set(1.58,1.43,1.52);f.baseScale.copy(f.model.scale);
-  f.model.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color.multiply(new T.Color('#ad806d'))}});
+  f.model.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color?.multiply(new T.Color('#ad806d'))}});
   const jacket=box(f.root,0,1.48,.05,.85,.58,.44,'#342f31');
   jacket.material.roughness=1;
   box(f.root,0,1.49,.29,.42,.39,.035,'#6b3430');
@@ -76,17 +76,17 @@ enemies=game.enemies.map((e,i)=>{
   const mark=label('BOSS',0,3.2,0);f.root.add(mark);mark.position.set(0,3.35,0);
  }else if(thug){
   f.model.scale.set(1.3,1.17,1.24);f.baseScale.copy(f.model.scale);
-  f.model.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color.multiply(new T.Color(i===1?'#aa9278':'#797c83'))}});
+  f.model.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color?.multiply(new T.Color(i===1?'#aa9278':'#797c83'))}});
  }else{
   // Muted, worn-looking security gear instead of identical pristine uniforms.
-  f.model.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color.multiply(new T.Color(i===0?'#a19c89':'#797b73'))}});
+  f.model.traverse(o=>{if(o.isMesh&&o.material){o.material=o.material.clone();o.material.color?.multiply(new T.Color(i===0?'#a19c89':'#797b73'))}});
  }
  return f;
 });modelReady=true;$('start').disabled=false;$('start').textContent='ENTER THE OFFICE →';
- }catch(err){$('panel').querySelector('p').textContent='Character loading failed. Refresh in a current Safari or Chrome browser. '+err.message;$('start').textContent='MODEL UNAVAILABLE';console.error(err)}})();
+ }catch(err){$('panel').querySelector('p').textContent='Character loading failed: '+err.message+'. Refresh the page to retry.';$('start').disabled=false;$('start').textContent='RETRY LOADING';$('start').onclick=()=>location.reload();console.error(err)}})();
 let running=false,keys=new Set(),stick={x:0,z:0},pointer=null;function clear(){keys.clear();stick={x:0,z:0};pointer=null;$('nub').style.transform=''}
 function pause(){if(!running)return;running=false;clear();$('panel').style.display='grid';$('start').textContent='RESUME →'}
-$('start').onclick=()=>{if(!modelReady)return;if(game.status!=='playing'){game.reset();desks.forEach(g=>{g.rotation.set(0,0,0);g.position.y=0})}running=true;$('panel').style.display='none'};
+$('start').onclick=()=>{if(!modelReady){$('panel').querySelector('p').textContent='Characters are still loading or an asset failed. Please refresh. If this continues, the error will appear here.';return}if(game.status!=='playing'){game.reset();desks.forEach(g=>{g.rotation.set(0,0,0);g.position.y=0})}running=true;$('panel').style.display='none'};
 const dodgeButton=document.createElement('button');dodgeButton.id='dodge';dodgeButton.textContent='DODGE';dodgeButton.style.cssText='width:72px;height:72px;background:#366a75cc';$('attack').parentElement.prepend(dodgeButton);const dodge=()=>{if(running)game.dodge({x:stick.x,z:stick.z})};dodgeButton.onpointerdown=e=>{e.preventDefault();dodge()};
 $('attack').onpointerdown=e=>{e.preventDefault();if(running)game.attack(game.player)};$('use').onpointerdown=e=>{e.preventDefault();if(running)game.pickup()};
 addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat)return;if(e.code==='KeyP')pause();if(running&&e.code==='Space')game.attack(game.player);if(running&&e.code==='KeyE')game.pickup();if(running&&(e.code==='ShiftLeft'||e.code==='ShiftRight'))dodge()});addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
